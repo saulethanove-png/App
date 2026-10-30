@@ -10,6 +10,7 @@ create table if not exists public.accounts (
   bank text not null default 'other',
   starting_balance bigint not null default 0,          -- в тиынах
   created_at bigint not null,                          -- мс с 1970 (как в приложении)
+  icon text check (char_length(icon) < 60000),         -- своя иконка (data URL)
   updated_at timestamptz not null default now(),
   primary key (user_id, id)
 );

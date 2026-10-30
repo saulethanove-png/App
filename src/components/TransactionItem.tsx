@@ -18,7 +18,7 @@ export function TransactionItem({ tx, onClick, showDate }: { tx: Transaction; on
     >
       <div className="relative">
         <CategoryIcon emoji={c.emoji} color={c.color} />
-        {acc && <div className="absolute -bottom-1 -right-1 rounded-lg ring-2 ring-white dark:ring-navy-900"><BankBadge bank={acc.bank} size="sm" /></div>}
+        {acc && <div className="absolute -bottom-1 -right-1 rounded-lg ring-2 ring-white dark:ring-navy-900"><BankBadge bank={acc.bank} size="sm" icon={acc.icon} /></div>}
       </div>
       <div className="min-w-0 flex-1">
         <div className="truncate text-[15px] font-semibold">{tx.note || c.name}</div>

@@ -134,7 +134,7 @@ export function Transactions() {
           </button>
           {state.accounts.map((a) => (
             <button key={a.id} className={cx('chip', acc === a.id && 'chip-active')} onClick={() => setAcc(acc === a.id ? null : a.id)}>
-              <BankBadge bank={a.bank} size="sm" /> {a.name}
+              <BankBadge bank={a.bank} size="sm" icon={a.icon} /> {a.name}
             </button>
           ))}
         </div>

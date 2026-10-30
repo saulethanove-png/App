@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Trash2, Upload } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { ImagePlus, Plus, Trash2, Upload } from 'lucide-react';
 import type { Account, BankId } from '../types';
 import { useStore } from '../store/AppStore';
 import { useToast } from '../store/Toasts';
@@ -13,9 +13,9 @@ export function AccountsCard({ onImport }: { onImport: () => void }) {
   const { state, today } = useStore();
   const [edit, setEdit] = useState<Account | 'new' | 'cash' | null>(null);
   const bals = accountBalances(state, today);
-  const list: { id: string; name: string; bank: BankId | 'cash'; sub: string }[] = [
+  const list: { id: string; name: string; bank: BankId | 'cash'; sub: string; icon?: string }[] = [
     { id: CASH_ACCOUNT, name: 'Наличные / основной', bank: 'cash', sub: 'Операции без счёта' },
-    ...state.accounts.map((a) => ({ id: a.id, name: a.name, bank: a.bank, sub: BANKS.find((b) => b.id === a.bank)?.name ?? '' })),
+    ...state.accounts.map((a) => ({ id: a.id, name: a.name, bank: a.bank, icon: a.icon, sub: BANKS.find((b) => b.id === a.bank)?.name ?? '' })),
   ];
   const counts = new Map<string, number>();
   for (const t of state.transactions) {
@@ -43,7 +43,7 @@ export function AccountsCard({ onImport }: { onImport: () => void }) {
             onClick={() => setEdit(a.id === CASH_ACCOUNT ? 'cash' : state.accounts.find((x) => x.id === a.id)!)}
             className="flex items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition hover:bg-navy-50 dark:hover:bg-navy-850"
           >
-            <BankBadge bank={a.bank} />
+            <BankBadge bank={a.bank} icon={a.icon} />
             <div className="min-w-0 flex-1">
               <div className="truncate text-[15px] font-semibold">{a.name}</div>
               <div className="truncate text-[12px] text-navy-400">{a.sub} · {counts.get(a.id) ?? 0} операций</div>
@@ -76,6 +76,17 @@ function AccountForm({ value, onClose }: { value: Account | 'new' | 'cash' | nul
   const [negative, setNegative] = useState(currentBal < 0);
   const [err, setErr] = useState<Record<string, string>>({});
   const [confirmDel, setConfirmDel] = useState(false);
+  const [icon, setIcon] = useState<string | undefined>(acc?.icon);
+  const [applyAll, setApplyAll] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const pickIcon = async (f: File) => {
+    try {
+      setIcon(await imageToIcon(f));
+    } catch {
+      toast({ kind: 'error', title: 'Не удалось открыть картинку', text: 'Выберите файл JPG, PNG или HEIC из галереи' });
+    }
+  };
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,9 +101,10 @@ function AccountForm({ value, onClose }: { value: Account | 'new' | 'cash' | nul
     if (isCash) {
       dispatch({ type: 'profile/update', patch: { startingBalance: state.profile.startingBalance + delta } });
     } else if (acc) {
-      dispatch({ type: 'account/upsert', account: { ...acc, name: name.trim(), bank, startingBalance: acc.startingBalance + delta } });
+      dispatch({ type: 'account/upsert', account: { ...acc, name: name.trim(), bank, icon, startingBalance: acc.startingBalance + delta } });
+      if (applyAll) for (const other of state.accounts) if (other.id !== acc.id && other.bank === bank) dispatch({ type: 'account/upsert', account: { ...other, icon } });
     } else {
-      dispatch({ type: 'account/upsert', account: { id: uid(), name: name.trim(), bank, startingBalance: target, createdAt: Date.now() } });
+      dispatch({ type: 'account/upsert', account: { id: uid(), name: name.trim(), bank, icon, startingBalance: target, createdAt: Date.now() } });
     }
     toast({ kind: 'success', title: 'Счёт сохранён' });
     onClose();
@@ -126,6 +138,24 @@ function AccountForm({ value, onClose }: { value: Account | 'new' | 'cash' | nul
       <form id="acc-form" onSubmit={save} className="space-y-4 pb-2" noValidate>
         {!isCash && (
           <>
+            <div className="flex items-center gap-4 rounded-2xl bg-navy-50 p-3 dark:bg-navy-850">
+              <BankBadge bank={bank} icon={icon} size="lg" />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-bold">Иконка счёта</div>
+                <div className="text-[12px] leading-snug text-navy-400">Выберите картинку из галереи — например, логотип, сохранённый с сайта банка.</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button type="button" className="btn-dark px-3 py-1.5 text-[13px]" onClick={() => fileRef.current?.click()}><ImagePlus className="h-4 w-4" /> {icon ? 'Заменить' : 'Выбрать'}</button>
+                  {icon && <button type="button" className="btn-ghost px-3 py-1.5 text-[13px]" onClick={() => setIcon(undefined)}>Убрать</button>}
+                </div>
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) pickIcon(f); e.target.value = ''; }} />
+              </div>
+            </div>
+            {acc && state.accounts.some((o) => o.id !== acc.id && o.bank === bank) && icon !== acc.icon && (
+              <label className="flex items-center gap-2 text-[13px] font-medium">
+                <input type="checkbox" className="h-4 w-4 accent-mint-400" checked={applyAll} onChange={(e) => setApplyAll(e.target.checked)} />
+                Поставить эту иконку всем счетам «{BANKS.find((b) => b.id === bank)?.name}»
+              </label>
+            )}
             <Field label="Название" error={err.name}>
               <input className={cx('input', err.name && 'input-error')} value={name} onChange={(e) => setName(e.target.value)} placeholder="Kaspi Gold" />
             </Field>
@@ -150,4 +180,34 @@ function AccountForm({ value, onClose }: { value: Account | 'new' | 'cash' | nul
       </form>
     </Modal>
   );
+}
+
+/** Картинка из галереи → квадратная иконка 96×96 (data URL, обычно 5–20 КБ) */
+async function imageToIcon(file: File): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = rej;
+      i.src = url;
+    });
+    const size = 96;
+    const c = document.createElement('canvas');
+    c.width = size;
+    c.height = size;
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, size, size);
+    // вписываем картинку целиком (логотипы не обрезаем)
+    const k = Math.min(size / img.width, size / img.height);
+    const w = img.width * k;
+    const h = img.height * k;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+    const png = c.toDataURL('image/png');
+    return png.length < 40_000 ? png : c.toDataURL('image/jpeg', 0.9);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }

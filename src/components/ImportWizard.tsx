@@ -467,9 +467,26 @@ function ColumnPicker({ sheet, map, onChange }: { sheet: Cell[][]; map: ColumnMa
   );
 }
 
-export function BankBadge({ bank, size = 'md' }: { bank: BankId | 'cash'; size?: 'sm' | 'md' }) {
-  const s = size === 'sm' ? 'h-6 w-6 text-[11px] rounded-lg' : 'h-10 w-10 text-[15px] rounded-xl';
+/** Значок счёта: своя картинка пользователя или фирменный цвет банка с монограммой */
+export function BankBadge({ bank, size = 'md', icon }: { bank: BankId | 'cash'; size?: 'sm' | 'md' | 'lg'; icon?: string }) {
+  const s = size === 'sm' ? 'h-6 w-6 text-[11px] rounded-lg' : size === 'lg' ? 'h-16 w-16 text-[24px] rounded-2xl' : 'h-10 w-10 text-[15px] rounded-xl';
+  if (icon) return <img src={icon} alt="" className={cx('shrink-0 bg-white object-cover ring-1 ring-navy-100 dark:ring-navy-700', s)} draggable={false} />;
   if (bank === 'cash') return <div className={cx('grid shrink-0 place-items-center bg-navy-900 font-extrabold text-mint-400 dark:bg-navy-700', s)}>₸</div>;
   const b = bankInfo(bank);
-  return <div className={cx('grid shrink-0 place-items-center font-extrabold text-white', s)} style={{ background: b.color }}>{b.short}</div>;
+  return (
+    <div
+      className={cx('relative grid shrink-0 place-items-center overflow-hidden font-extrabold text-white', s)}
+      style={{ background: `linear-gradient(145deg, ${b.color}, ${shade(b.color, -28)})` }}
+    >
+      <span aria-hidden className="absolute -right-1/4 -top-1/4 h-3/4 w-3/4 rounded-full bg-white/20" />
+      <span className="relative">{b.short}</span>
+    </div>
+  );
+}
+
+/** затемнить/осветлить HEX-цвет на pct процентов */
+function shade(hex: string, pct: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const f = (c: number) => Math.max(0, Math.min(255, Math.round(pct < 0 ? c * (1 + pct / 100) : c + (255 - c) * (pct / 100))));
+  return '#' + [f(n >> 16), f((n >> 8) & 255), f(n & 255)].map((c) => c.toString(16).padStart(2, '0')).join('');
 }

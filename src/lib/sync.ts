@@ -62,7 +62,7 @@ const toRow: Record<Kind, (x: never) => Record<string, unknown>> = {
     account_id: t.accountId ?? null, source: t.source ?? 'manual', external_id: t.externalId ?? null,
     raw_description: t.rawDescription ?? null, created_at: t.createdAt,
   }),
-  accounts: (a: Account) => ({ id: a.id, name: a.name, bank: a.bank, starting_balance: a.startingBalance, created_at: a.createdAt }),
+  accounts: (a: Account) => ({ id: a.id, name: a.name, bank: a.bank, starting_balance: a.startingBalance, created_at: a.createdAt, ...('icon' in a ? { icon: a.icon ?? null } : {}) }),
   goals: (g: Goal) => ({ id: g.id, title: g.title, emoji: g.emoji, target: g.target, saved: g.saved, deadline: g.deadline ?? null, created_at: g.createdAt }),
   category_rules: (r: CategoryRule) => ({ id: r.id, pattern: r.pattern, category_id: r.categoryId, type: r.type, created_at: r.createdAt }),
 };
@@ -77,7 +77,7 @@ export const fromRow = {
     note: opt<string>(r.note), accountId: opt<string>(r.account_id), source: opt<Transaction['source']>(r.source),
     externalId: opt<string>(r.external_id), rawDescription: opt<string>(r.raw_description), createdAt: num(r.created_at),
   }),
-  accounts: (r: R): Account => ({ id: String(r.id), name: String(r.name), bank: r.bank as Account['bank'], startingBalance: num(r.starting_balance), createdAt: num(r.created_at) }),
+  accounts: (r: R): Account => ({ id: String(r.id), name: String(r.name), bank: r.bank as Account['bank'], startingBalance: num(r.starting_balance), createdAt: num(r.created_at), icon: opt<string>(r.icon) }),
   goals: (r: R): Goal => ({ id: String(r.id), title: String(r.title), emoji: String(r.emoji), target: num(r.target), saved: num(r.saved), deadline: opt<string>(r.deadline), createdAt: num(r.created_at) }),
   category_rules: (r: R): CategoryRule => ({ id: String(r.id), pattern: String(r.pattern), categoryId: String(r.category_id), type: r.type as CategoryRule['type'], createdAt: num(r.created_at) }),
 };
@@ -119,7 +119,11 @@ export async function pushOps(sb: SupabaseClient, userId: string, ops: Op[]): Pr
     for (let i = 0; i < ups.length; i += 500) {
       const chunk = ups.slice(i, i + 500);
       const rows = chunk.map((o) => ({ user_id: userId, ...toRow[kind](o.data as never) }));
-      const { error } = await sb.from(kind).upsert(rows, { onConflict: 'user_id,id' });
+      let { error } = await sb.from(kind).upsert(rows, { onConflict: 'user_id,id' });
+      // в базе ещё нет колонки icon (не выполнен SQL) — сохраняем счёт без иконки, чтобы не блокировать синхронизацию
+      if (error && kind === 'accounts' && /icon/i.test(error.message)) {
+        ({ error } = await sb.from(kind).upsert(rows.map((r) => { const c: Record<string, unknown> = { ...r }; delete c.icon; return c; }), { onConflict: 'user_id,id' }));
+      }
       if (error) throw error;
       done.push(...chunk.map((o) => `${kind}:${o.id}`));
     }

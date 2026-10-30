@@ -31,6 +31,8 @@ export interface Account {
   /** Остаток счёта до первой учтённой операции */
   startingBalance: Money;
   createdAt: number;
+  /** Своя иконка счёта (картинка 96×96 в data URL) */
+  icon?: string;
 }
 
 /** Правило автокатегоризации: если описание содержит pattern — ставим categoryId */

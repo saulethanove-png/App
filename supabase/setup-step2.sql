@@ -318,3 +318,8 @@ grant execute on function public.rotate_wallet_token(), public.revoke_wallet_tok
 -- Администратор: saulethanove@gmail.com (права выдаются сразу или автоматически после регистрации)
 insert into public.admin_invites (email) values ('saulethanove@gmail.com') on conflict do nothing;
 insert into public.admins (user_id) select id from auth.users where lower(email) = 'saulethanove@gmail.com' on conflict do nothing;
+
+-- Finalyze — свои иконки счетов (логотип банка из галереи). Повторный запуск безопасен.
+alter table public.accounts add column if not exists icon text;
+alter table public.accounts drop constraint if exists accounts_icon_size;
+alter table public.accounts add constraint accounts_icon_size check (icon is null or char_length(icon) < 60000);
