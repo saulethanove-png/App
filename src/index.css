@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-tap-highlight-color: transparent; }
+  body {
+    @apply bg-[#F3F6FB] text-navy-900 antialiased dark:bg-navy-950 dark:text-navy-50;
+    font-feature-settings: 'tnum' 1, 'cv11' 1;
+  }
+  input, select, textarea, button { font: inherit; }
+  :focus-visible { @apply outline-none ring-2 ring-mint-400/70 ring-offset-2 ring-offset-transparent; }
+  /* полоса под статус-баром iPhone в режиме приложения */
+  body::before { content: ''; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 45; @apply bg-navy-950; }
+  input[type='date'] { min-height: 3rem; -webkit-appearance: none; appearance: none; }
+  input[type='date']::-webkit-calendar-picker-indicator { opacity: .6; cursor: pointer; }
+  .dark input[type='date']::-webkit-calendar-picker-indicator { filter: invert(1); }
+}
+
+@layer components {
+  .card {
+    @apply rounded-3xl border border-navy-100/70 bg-white shadow-card dark:border-navy-800 dark:bg-navy-900 dark:shadow-none;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition active:scale-[.98] disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-primary { @apply btn bg-mint-400 text-navy-950 hover:bg-mint-300 shadow-glow; }
+  .btn-dark { @apply btn bg-navy-900 text-white hover:bg-navy-800 dark:bg-white dark:text-navy-950 dark:hover:bg-navy-100; }
+  .btn-ghost { @apply btn bg-navy-50 text-navy-700 hover:bg-navy-100 dark:bg-navy-800 dark:text-navy-100 dark:hover:bg-navy-700; }
+  .btn-danger { @apply btn bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20; }
+  .input {
+    @apply w-full rounded-2xl border border-navy-100 bg-navy-50/50 px-4 py-3 text-base text-navy-900 placeholder:text-navy-300 transition
+      focus:border-mint-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-mint-400/15
+      dark:border-navy-700 dark:bg-navy-850 dark:text-white dark:placeholder:text-navy-500 dark:focus:bg-navy-850;
+  }
+  .input-error { @apply border-rose-400 focus:border-rose-400 focus:ring-rose-400/15 dark:border-rose-500; }
+  .label { @apply mb-1.5 block text-[13px] font-semibold text-navy-500 dark:text-navy-300; }
+  .muted { @apply text-navy-400 dark:text-navy-400; }
+  .h-section { @apply text-[17px] font-bold tracking-tight text-navy-900 dark:text-white; }
+  .chip {
+    @apply inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition
+      border-navy-100 bg-white text-navy-600 hover:border-navy-200 dark:border-navy-700 dark:bg-navy-900 dark:text-navy-200;
+  }
+  .chip-active { @apply border-navy-900 bg-navy-900 text-white dark:border-mint-400 dark:bg-mint-400 dark:text-navy-950; }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { scrollbar-width: none; }
+  .pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+  .pt-safe { padding-top: max(1rem, env(safe-area-inset-top)); }
+}
+
+.recharts-wrapper *:focus { outline: none; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
