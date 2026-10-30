@@ -2,11 +2,13 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import { VitePWA } from 'vite-plugin-pwa';
+import { fileURLToPath } from 'node:url';
 
 // npm run build       → веб-приложение (PWA) в dist/ — для GitHub Pages и iPhone
 // npm run build:file  → один файл dist-file/index.html, открывается двойным щелчком без сервера
 export default defineConfig(({ mode }) => ({
   base: './',
+  resolve: mode === 'file' ? { alias: { 'virtual:pwa-register': fileURLToPath(new URL('./src/pwa-stub.ts', import.meta.url)) } } : {},
   plugins:
     mode === 'file'
       ? [react(), viteSingleFile()]
@@ -14,6 +16,7 @@ export default defineConfig(({ mode }) => ({
           react(),
           VitePWA({
             registerType: 'autoUpdate',
+            injectRegister: null, // регистрируем сами в src/pwa.ts
             includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
             manifest: {
               name: 'Money Flow — личные финансы',
@@ -36,6 +39,9 @@ export default defineConfig(({ mode }) => ({
               globPatterns: ['**/*.{js,css,html,png,svg,mjs}'],
               maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
               navigateFallback: 'index.html',
+              skipWaiting: true,
+              clientsClaim: true,
+              cleanupOutdatedCaches: true,
               runtimeCaching: [
                 {
                   urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/,

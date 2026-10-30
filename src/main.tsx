@@ -7,6 +7,9 @@ import { CloudProvider } from './store/Cloud';
 import { ContentProvider } from './store/Content';
 import { Gate } from './Gate';
 import './index.css';
+import { setupPwa } from './pwa';
+
+setupPwa();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
