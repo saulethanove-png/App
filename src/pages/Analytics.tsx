@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useAccentHex } from '../store/AppStore';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ChevronLeft, ChevronRight, Crown, Flame, TrendingDown, TrendingUp } from 'lucide-react';
 import { useStore } from '../store/AppStore';
@@ -18,6 +19,7 @@ const axisMoney = (v: number) => {
 
 export function Analytics() {
   const { state, today } = useStore();
+  const accent = useAccentHex();
   const { go } = useUI();
   const t = parseISO(today);
   const [mode, setMode] = useState<Mode>('month');
@@ -156,8 +158,8 @@ export function Analytics() {
                         <CartesianGrid vertical={false} strokeDasharray="3 6" stroke="currentColor" className="text-navy-100 dark:text-navy-800" />
                         <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#8197C9' }} interval="preserveStartEnd" minTickGap={8} />
                         <YAxis tickFormatter={axisMoney} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#8197C9' }} width={40} />
-                        <Tooltip content={<ChartTooltip labelFormatter={(l) => l} />} cursor={{ fill: 'rgba(34,211,127,.08)' }} />
-                        <Bar dataKey="expense" name="Расходы" fill="#22D37F" radius={[6, 6, 2, 2]} maxBarSize={28} animationDuration={700} />
+                        <Tooltip content={<ChartTooltip labelFormatter={(l) => l} />} cursor={{ fill: accent + '14' }} />
+                        <Bar dataKey="expense" name="Расходы" fill={accent} radius={[6, 6, 2, 2]} maxBarSize={28} animationDuration={700} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -204,7 +206,7 @@ export function Analytics() {
                       <YAxis tickFormatter={axisMoney} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#8197C9' }} width={40} />
                       <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(129,151,201,.08)' }} />
                       <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, fontWeight: 600 }} />
-                      <Bar dataKey="income" name="Доходы" fill="#22D37F" radius={[6, 6, 2, 2]} maxBarSize={22} />
+                      <Bar dataKey="income" name="Доходы" fill={accent} radius={[6, 6, 2, 2]} maxBarSize={22} />
                       <Bar dataKey="expense" name="Расходы" fill="#3A5290" radius={[6, 6, 2, 2]} maxBarSize={22} />
                     </BarChart>
                   </ResponsiveContainer>

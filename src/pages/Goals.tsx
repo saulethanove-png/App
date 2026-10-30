@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CalendarDays, Minus, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { Goal } from '../types';
-import { useStore } from '../store/AppStore';
+import { useStore, useAccentHex } from '../store/AppStore';
 import { useToast } from '../store/Toasts';
 import { formatDateShort, formatMoney, moneyToInput, parseISO, parseMoney, prettifyInput, addDays, pluralize } from '../lib/format';
 import { goalProgress, monthlyToGoal } from '../lib/calc';
@@ -17,6 +17,7 @@ const TEMPLATES = [
 
 export function Goals() {
   const { state, dispatch, today } = useStore();
+  const accent = useAccentHex();
   const toast = useToast();
   const [form, setForm] = useState<{ open: boolean; goal: Goal | null; template?: (typeof TEMPLATES)[number] }>({ open: false, goal: null });
   const [deposit, setDeposit] = useState<Goal | null>(null);
@@ -71,7 +72,7 @@ export function Goals() {
                   <div className="relative h-20 w-20 shrink-0">
                     <svg viewBox="0 0 80 80" className="h-20 w-20 -rotate-90">
                       <circle cx="40" cy="40" r={R} fill="none" strokeWidth="8" className="stroke-navy-100 dark:stroke-navy-800" />
-                      <circle cx="40" cy="40" r={R} fill="none" strokeWidth="8" strokeLinecap="round" stroke="#22D37F" strokeDasharray={C} strokeDashoffset={C * (1 - gp.ratio)} style={{ transition: 'stroke-dashoffset .8s cubic-bezier(.2,.8,.2,1)' }} />
+                      <circle cx="40" cy="40" r={R} fill="none" strokeWidth="8" strokeLinecap="round" stroke={accent} strokeDasharray={C} strokeDashoffset={C * (1 - gp.ratio)} style={{ transition: 'stroke-dashoffset .8s cubic-bezier(.2,.8,.2,1)' }} />
                     </svg>
                     <div className="absolute inset-0 grid place-items-center text-3xl">{g.emoji}</div>
                   </div>

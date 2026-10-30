@@ -49,7 +49,7 @@ export function AuthScreen() {
           <h1 className="mt-8 text-[30px] font-extrabold leading-tight tracking-tight lg:text-[44px]">
             Все деньги —<br />в одном месте
           </h1>
-          <p className="mt-3 max-w-md text-[15px] text-navy-200">Kaspi, Halyk, наличные: загрузите выписки, и Money Flow сам разложит траты по категориям.</p>
+          <p className="mt-3 max-w-md text-[15px] text-navy-200">Kaspi, Halyk, наличные: загрузите выписки, и Finalyze сам разложит траты по категориям.</p>
           <div className="mt-6 hidden gap-3 lg:grid">
             {[
               { icon: Cloud, t: 'Данные в облаке — ничего не потеряется' },
@@ -96,7 +96,7 @@ export function AuthScreen() {
             </button>
             {mode === 'up' && (
               <p className="text-center text-[12px] leading-snug text-navy-400">
-                Регистрируясь, вы соглашаетесь, что администратор Money Flow может просматривать ваши операции для поддержки. Каждый такой просмотр записывается в журнал.
+                Регистрируясь, вы соглашаетесь, что администратор Finalyze может просматривать ваши операции для поддержки. Каждый такой просмотр записывается в журнал.
               </p>
             )}
             {mode === 'in' && (

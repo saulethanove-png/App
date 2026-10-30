@@ -1,4 +1,4 @@
--- MONEY FLOW — автоматическая запись трат по Apple Pay (через «Команды» на iPhone)
+-- Finalyze — автоматическая запись трат по Apple Pay (через «Команды» на iPhone)
 -- Запустите в SQL Editor после schema.sql. Повторный запуск безопасен.
 
 -- Источник операции «wallet» — оплата через Apple Pay
@@ -68,7 +68,7 @@ declare
   tx_id text := 'w' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 14);
 begin
   select user_id into uid from public.wallet_tokens where token = p_token;
-  if uid is null then return jsonb_build_object('ok', false, 'error', 'Неверный ключ — получите новый в Money Flow → Профиль → Apple Pay'); end if;
+  if uid is null then return jsonb_build_object('ok', false, 'error', 'Неверный ключ — получите новый в Finalyze → Профиль → Apple Pay'); end if;
 
   amt := public._parse_amount(p_amount);
   if amt is null or amt <= 0 then return jsonb_build_object('ok', false, 'error', 'Не удалось прочитать сумму: ' || coalesce(p_amount, '')); end if;

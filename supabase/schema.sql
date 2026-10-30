@@ -1,4 +1,4 @@
--- MONEY FLOW — схема базы данных Supabase
+-- Finalyze — схема базы данных Supabase
 -- Запустите целиком: Supabase → SQL Editor → New query → вставить → Run.
 -- Каждая таблица защищена Row Level Security: пользователь видит и меняет только свои строки.
 

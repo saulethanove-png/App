@@ -24,7 +24,7 @@ export function ApplePayCard() {
         <div className="min-w-0 flex-1 basis-[calc(100%-4rem)] sm:basis-auto">
           <div className="font-bold">Apple Pay — траты записываются сами</div>
           <div className="text-[13px] text-navy-400">
-            {count ? `Записано ${count} оплат${last ? ` · последняя ${formatMoney(last.amount)} ${last.note ?? ''}` : ''}` : 'Оплатили телефоном — операция появилась в Money Flow с категорией'}
+            {count ? `Записано ${count} оплат${last ? ` · последняя ${formatMoney(last.amount)} ${last.note ?? ''}` : ''}` : 'Оплатили телефоном — операция появилась в Finalyze с категорией'}
           </div>
         </div>
         <button className="btn-dark w-full sm:w-auto" disabled={!cloud.user} onClick={() => setOpen(true)}>
@@ -60,10 +60,10 @@ function ApplePaySetup({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Modal open onClose={onClose} title="Apple Pay → Money Flow">
+    <Modal open onClose={onClose} title="Apple Pay → Finalyze">
       <div className="space-y-4 pb-4 text-[14px]">
         <p className="text-navy-500 dark:text-navy-300">
-          iPhone сам запускает команду при каждой оплате картой из Wallet и отправляет сумму, магазин и карту. Категорию Money Flow подберёт по вашим правилам. Нужен iOS 17 или новее.
+          iPhone сам запускает команду при каждой оплате картой из Wallet и отправляет сумму, магазин и карту. Категорию Finalyze подберёт по вашим правилам. Нужен iOS 17 или новее.
         </p>
 
         {busy && !token ? (
@@ -94,7 +94,7 @@ function ApplePaySetup({ onClose }: { onClose: () => void }) {
                   <li><code>p_card</code> — переменная <b>«Карта или пропуск»</b></li>
                 </ul>
               </Step>
-              <Step n={5} title="Проверка">Сохраните и оплатите что-нибудь через Apple Pay — операция появится в Money Flow через пару секунд.</Step>
+              <Step n={5} title="Проверка">Сохраните и оплатите что-нибудь через Apple Pay — операция появится в Finalyze через пару секунд.</Step>
             </ol>
 
             <div className="rounded-2xl bg-amber-50 p-3 text-[12px] text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">

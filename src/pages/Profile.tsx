@@ -9,8 +9,9 @@ import { storageAvailable } from '../lib/storage';
 import { levelOf, xpOf } from '../lib/learn';
 import { Card, Field, Modal, SectionHeader, cx } from '../components/ui';
 import { useCloud } from '../store/Cloud';
+import { ACCENTS, APP_NAME, type AccentId } from '../lib/theme';
 import { ApplePayCard } from '../components/ApplePay';
-import { Cloud, CloudOff, LogIn, LogOut, RefreshCw } from 'lucide-react';
+import { Check, Cloud, CloudOff, LogIn, LogOut, RefreshCw } from 'lucide-react';
 
 export function ProfilePage() {
   const { state, dispatch, today } = useStore();
@@ -41,11 +42,11 @@ export function ProfilePage() {
 
   const exportCsv = () => {
     if (!state.transactions.length) return toast({ kind: 'warn', title: 'Нет операций для экспорта' });
-    downloadText(`moneyflow-${todayISO()}.csv`, transactionsToCSV(state.transactions));
+    downloadText(`finalyze-${todayISO()}.csv`, transactionsToCSV(state.transactions));
     toast({ kind: 'success', title: 'CSV сохранён', text: `${state.transactions.length} операций` });
   };
   const exportJson = () => {
-    downloadText(`moneyflow-backup-${todayISO()}.json`, JSON.stringify(state, null, 2), 'application/json');
+    downloadText(`finalyze-backup-${todayISO()}.json`, JSON.stringify(state, null, 2), 'application/json');
     toast({ kind: 'success', title: 'Резервная копия сохранена' });
   };
   const importJson = async (f: File) => {
@@ -56,7 +57,7 @@ export function ProfilePage() {
       dispatch({ type: 'import', state: { ...s, learning: s.learning ?? { readArticles: [], doneTasks: {}, bonusXp: 0 }, alertsShown: [] } });
       toast({ kind: 'success', title: 'Данные восстановлены', text: `${s.transactions.length} операций` });
     } catch {
-      toast({ kind: 'error', title: 'Не удалось прочитать файл', text: 'Выберите резервную копию Money Flow (.json)' });
+      toast({ kind: 'error', title: 'Не удалось прочитать файл', text: 'Выберите резервную копию Finalyze (.json)' });
     }
   };
 
@@ -145,6 +146,29 @@ export function ProfilePage() {
                 </button>
               ))}
             </div>
+            <div className="mt-5">
+              <div className="label">Цвет акцента</div>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-7" role="radiogroup" aria-label="Цвет акцента">
+                {(Object.keys(ACCENTS) as AccentId[]).map((id) => {
+                  const active = (state.profile.accent ?? 'green') === id;
+                  return (
+                    <button
+                      key={id}
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => dispatch({ type: 'profile/update', patch: { accent: id } })}
+                      className={cx('flex flex-col items-center gap-1.5 rounded-2xl border-2 py-2.5 text-[11px] font-semibold transition', active ? 'border-navy-900 dark:border-white' : 'border-transparent hover:bg-navy-50 dark:hover:bg-navy-850')}
+                    >
+                      <span className="grid h-8 w-8 place-items-center rounded-full" style={{ background: ACCENTS[id].shades[4], boxShadow: `0 6px 16px -6px ${ACCENTS[id].shades[4]}` }}>
+                        {active && <Check className="h-4 w-4 text-navy-950" strokeWidth={3} />}
+                      </span>
+                      {ACCENTS[id].label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-2 text-[12px] text-navy-400">Цвет применяется к кнопкам, графикам и иконкам — на всех ваших устройствах.</div>
+            </div>
           </Card>
 
           <Card className="p-5">
@@ -167,7 +191,7 @@ export function ProfilePage() {
         </div>
       </div>
 
-      <div className="pb-4 text-center text-[12px] text-navy-400">MONEY FLOW · версия 1.0 · баланс сейчас {formatMoney(state.profile.startingBalance + state.transactions.filter((t) => t.date <= today).reduce((a, t) => a + (t.type === 'income' ? t.amount : -t.amount), 0))}</div>
+      <div className="pb-4 text-center text-[12px] text-navy-400">{APP_NAME} · версия 1.1 · баланс сейчас {formatMoney(state.profile.startingBalance + state.transactions.filter((t) => t.date <= today).reduce((a, t) => a + (t.type === 'income' ? t.amount : -t.amount), 0))}</div>
 
       <Modal
         open={!!confirm}

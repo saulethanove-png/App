@@ -8,7 +8,7 @@ export function Gate({ children }: { children: ReactNode }) {
   if (!c.ready) {
     return (
       <div className="grid min-h-dvh place-items-center bg-navy-950">
-        <svg viewBox="0 0 24 24" className="h-10 w-10 animate-pulse" fill="none" stroke="#22D37F" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 16l5-6 4 4 7-8" /></svg>
+        <svg viewBox="0 0 24 24" className="h-10 w-10 animate-pulse" fill="none" style={{ stroke: 'rgb(var(--a-400))' }} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 16l5-6 4 4 7-8" /></svg>
       </div>
     );
   }

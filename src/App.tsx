@@ -243,12 +243,12 @@ export function Logo({ className }: { className?: string }) {
   return (
     <div className={cx('flex items-center gap-2.5', className)}>
       <div className="grid h-9 w-9 place-items-center rounded-xl bg-navy-900 dark:bg-mint-400/10">
-        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="#22D37F" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" style={{ stroke: 'rgb(var(--a-400))' }} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 16l5-6 4 4 7-8" />
         </svg>
       </div>
       <div className="text-[17px] font-extrabold tracking-tight">
-        MONEY<span className="text-mint-500"> FLOW</span>
+        Fin<span className="text-mint-500">alyze</span>
       </div>
     </div>
   );

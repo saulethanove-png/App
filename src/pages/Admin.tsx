@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAccentHex } from '../store/AppStore';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import {
   Ban, Eye, EyeOff, Loader2, Pencil, Plus, RefreshCw, RotateCcw, Search, ShieldCheck, ShieldOff, Trash2,
@@ -52,6 +53,7 @@ export function AdminPage() {
 // ───────────── Обзор ─────────────
 
 function Overview() {
+  const accent = useAccentHex();
   const [s, setS] = useState<AdminStats | null>(null);
   const [err, setErr] = useState('');
   const load = useCallback(async () => {
@@ -92,8 +94,8 @@ function Overview() {
                 <CartesianGrid vertical={false} strokeDasharray="3 6" stroke="currentColor" className="text-navy-100 dark:text-navy-800" />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#8197C9' }} interval="preserveStartEnd" minTickGap={16} />
                 <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#8197C9' }} width={28} />
-                <Tooltip cursor={{ fill: 'rgba(34,211,127,.08)' }} contentStyle={{ borderRadius: 12, border: 'none', background: '#0B1328', color: '#fff' }} formatter={(v: number) => [v, 'регистраций']} />
-                <Bar dataKey="count" fill="#22D37F" radius={[6, 6, 2, 2]} maxBarSize={18} />
+                <Tooltip cursor={{ fill: accent + '14' }} contentStyle={{ borderRadius: 12, border: 'none', background: '#0B1328', color: '#fff' }} formatter={(v: number) => [v, 'регистраций']} />
+                <Bar dataKey="count" fill={accent} radius={[6, 6, 2, 2]} maxBarSize={18} />
               </BarChart>
             </ResponsiveContainer>
           </div>

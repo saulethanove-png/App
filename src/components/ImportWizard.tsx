@@ -372,7 +372,7 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
                 <div key={r.externalId} className={cx('flex items-start gap-3 px-2 py-2.5', !r.include && 'opacity-50')}>
                   <input
                     type="checkbox"
-                    className="mt-1 h-5 w-5 shrink-0 accent-[#22D37F]"
+                    className="mt-1 h-5 w-5 shrink-0 accent-mint-400"
                     checked={r.include}
                     disabled={r.duplicate}
                     onChange={(e) => setRow(i, { include: e.target.checked })}

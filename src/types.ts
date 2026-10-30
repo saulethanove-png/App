@@ -66,6 +66,8 @@ export interface Profile {
   /** Деньги, которые были у пользователя до начала учёта */
   startingBalance: Money;
   theme: ThemeMode;
+  /** акцентный цвет оформления */
+  accent?: import('./lib/theme').AccentId;
   createdAt: number;
 }
 

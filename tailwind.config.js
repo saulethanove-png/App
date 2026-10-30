@@ -13,14 +13,11 @@ export default {
           500: '#3A5290', 600: '#2A3D70', 700: '#1D2C54', 800: '#14203F', 850: '#0F1932',
           900: '#0B1328', 950: '#060C1C',
         },
-        mint: {
-          50: '#E8FDF2', 100: '#C6F9DE', 200: '#8EF2BE', 300: '#52E79B', 400: '#22D37F',
-          500: '#12B76A', 600: '#0A9356', 700: '#087245',
-        },
+        mint: Object.fromEntries([50, 100, 200, 300, 400, 500, 600, 700].map((n) => [n, `rgb(var(--a-${n}) / <alpha-value>)`])),
       },
       boxShadow: {
         card: '0 1px 2px rgba(11,19,40,.04), 0 8px 24px -12px rgba(11,19,40,.12)',
-        glow: '0 10px 40px -10px rgba(34,211,127,.55)',
+        glow: '0 10px 40px -10px rgb(var(--a-400) / .55)',
       },
       keyframes: {
         'fade-up': { '0%': { opacity: 0, transform: 'translateY(8px)' }, '100%': { opacity: 1, transform: 'translateY(0)' } },

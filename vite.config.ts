@@ -19,8 +19,8 @@ export default defineConfig(({ mode }) => ({
             injectRegister: null, // регистрируем сами в src/pwa.ts
             includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
             manifest: {
-              name: 'Money Flow — личные финансы',
-              short_name: 'Money Flow',
+              name: 'Finalyze — личные финансы',
+              short_name: 'Finalyze',
               description: 'Учёт доходов и расходов, бюджет, цели и импорт выписок Kaspi',
               lang: 'ru',
               start_url: './',

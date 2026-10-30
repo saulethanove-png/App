@@ -1,4 +1,4 @@
--- MONEY FLOW — мгновенная синхронизация между устройствами (Supabase Realtime)
+-- Finalyze — мгновенная синхронизация между устройствами (Supabase Realtime)
 -- Запустите в SQL Editor один раз. Повторный запуск безопасен.
 do $$
 declare t text;

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useAccentHex } from '../store/AppStore';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ArrowDownLeft, ArrowUpRight, ChevronRight, Lightbulb, Moon, Sun, Wallet } from 'lucide-react';
 import { useStore } from '../store/AppStore';
@@ -21,6 +22,7 @@ function greeting() {
 
 export function Dashboard() {
   const { state, dispatch, today } = useStore();
+  const accent = useAccentHex();
   const { openAdd, openEdit, go, openImport } = useUI();
   const [range, setRange] = useState<'week' | 'month'>('week');
 
@@ -76,7 +78,7 @@ export function Dashboard() {
           <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-mint-400/25 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-24 left-10 h-56 w-56 rounded-full bg-sky-500/15 blur-3xl" />
           <svg className="pointer-events-none absolute bottom-0 right-0 h-28 w-2/3 opacity-30" viewBox="0 0 300 100" preserveAspectRatio="none">
-            <path d="M0 90 C 40 80, 60 60, 100 65 S 160 30, 200 40 S 260 10, 300 5" fill="none" stroke="#22D37F" strokeWidth="2.5" />
+            <path d="M0 90 C 40 80, 60 60, 100 65 S 160 30, 200 40 S 260 10, 300 5" fill="none" stroke={accent} strokeWidth="2.5" />
           </svg>
           <div className="relative">
             <div className="flex items-center gap-2 text-sm font-semibold text-navy-200">
@@ -159,15 +161,15 @@ export function Dashboard() {
               <AreaChart data={series} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gExp" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#22D37F" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#22D37F" stopOpacity={0} />
+                    <stop offset="0%" stopColor={accent} stopOpacity={0.35} />
+                    <stop offset="100%" stopColor={accent} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid vertical={false} strokeDasharray="3 6" stroke="currentColor" className="text-navy-100 dark:text-navy-800" />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: '#8197C9' }} interval={range === 'week' ? 0 : 'preserveStartEnd'} minTickGap={12} />
                 <YAxis hide />
-                <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#22D37F', strokeOpacity: 0.3 }} />
-                <Area type="monotone" dataKey="expense" name="Расходы" stroke="#22D37F" strokeWidth={2.5} fill="url(#gExp)" animationDuration={700} />
+                <Tooltip content={<ChartTooltip />} cursor={{ stroke: accent, strokeOpacity: 0.3 }} />
+                <Area type="monotone" dataKey="expense" name="Расходы" stroke={accent} strokeWidth={2.5} fill="url(#gExp)" animationDuration={700} />
               </AreaChart>
             </ResponsiveContainer>
           </div>

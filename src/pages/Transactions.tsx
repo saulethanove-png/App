@@ -67,7 +67,7 @@ export function Transactions() {
 
   const exportCsv = () => {
     if (!filtered.length) return toast({ kind: 'warn', title: 'Нечего экспортировать', text: 'Измените фильтры' });
-    const name = ym ? `moneyflow-${ym.y}-${String(ym.m + 1).padStart(2, '0')}.csv` : 'moneyflow-all.csv';
+    const name = ym ? `finalyze-${ym.y}-${String(ym.m + 1).padStart(2, '0')}.csv` : 'finalyze-all.csv';
     downloadText(name, transactionsToCSV(filtered));
     toast({ kind: 'success', title: 'Файл CSV сохранён', text: `${filtered.length} операций` });
   };

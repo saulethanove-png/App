@@ -3,6 +3,7 @@ import type { Account, AppState, Budget, CategoryRule, Goal, Money, Profile, Tra
 import { loadState, saveState } from '../lib/storage';
 import { demoState, emptyState } from '../lib/seed';
 import { todayISO, uid } from '../lib/format';
+import { accentHex } from '../lib/theme';
 
 type Action =
   | { type: 'tx/add'; tx: Omit<Transaction, 'id' | 'createdAt'> }
@@ -155,12 +156,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       const t = state.profile.theme;
       const dark = t === 'dark' || (t === 'system' && mq.matches);
       document.documentElement.classList.toggle('dark', dark);
+      document.documentElement.dataset.accent = state.profile.accent ?? 'green';
       document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#060C1C' : '#F3F6FB');
     };
     apply();
     mq.addEventListener('change', apply);
     return () => mq.removeEventListener('change', apply);
-  }, [state.profile.theme]);
+  }, [state.profile.theme, state.profile.accent]);
 
   const today = todayISO();
   const value = useMemo(() => ({ state, dispatch, today }), [state, today]);
@@ -171,4 +173,10 @@ export function useStore() {
   const c = useContext(StoreCtx);
   if (!c) throw new Error('useStore outside provider');
   return c;
+}
+
+/** HEX акцентного цвета — для графиков и SVG, где CSS-переменные не работают */
+export function useAccentHex(shade: 300 | 400 | 500 = 400) {
+  const { state } = useStore();
+  return accentHex(state.profile.accent, shade);
 }
