@@ -23,13 +23,13 @@ export default {
         glow: '0 10px 40px -10px rgba(34,211,127,.55)',
       },
       keyframes: {
-        'fade-up': { '0%': { opacity: 0, transform: 'translateY(8px)' }, '100%': { opacity: 1, transform: 'none' } },
+        'fade-up': { '0%': { opacity: 0, transform: 'translateY(8px)' }, '100%': { opacity: 1, transform: 'translateY(0)' } },
         'sheet-up': { '0%': { transform: 'translateY(100%)' }, '100%': { transform: 'none' } },
         'pop': { '0%': { opacity: 0, transform: 'scale(.96)' }, '100%': { opacity: 1, transform: 'none' } },
         'fade': { '0%': { opacity: 0 }, '100%': { opacity: 1 } },
       },
       animation: {
-        'fade-up': 'fade-up .35s cubic-bezier(.2,.8,.2,1) both',
+        'fade-up': 'fade-up .35s cubic-bezier(.2,.8,.2,1) backwards',
         'sheet-up': 'sheet-up .3s cubic-bezier(.2,.8,.2,1) both',
         'pop': 'pop .22s cubic-bezier(.2,.8,.2,1) both',
         'fade': 'fade .2s ease both',

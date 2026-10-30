@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { formatMoney } from '../lib/format';
 
@@ -76,7 +77,9 @@ export function Modal({ open, onClose, title, children, footer }: {
     };
   }, [open, onClose]);
   if (!open) return null;
-  return (
+  // Окно рендерится прямо в <body>: в Safari на iPhone fixed-элемент внутри анимированного
+  // блока страницы привязывается к этому блоку и уезжает за экран.
+  return createPortal(
     <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0 animate-fade bg-navy-950/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative flex max-h-[92dvh] w-full animate-sheet-up flex-col rounded-t-[28px] bg-white shadow-2xl dark:bg-navy-900 sm:max-w-lg sm:animate-pop sm:rounded-[28px]">
@@ -89,8 +92,10 @@ export function Modal({ open, onClose, title, children, footer }: {
         </div>
         <div className="overflow-y-auto px-5 pb-4 sm:px-6">{children}</div>
         {footer && <div className="pb-safe border-t border-navy-100 px-5 py-4 dark:border-navy-800 sm:px-6">{footer}</div>}
+        {!footer && <div className="pb-safe" />}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
