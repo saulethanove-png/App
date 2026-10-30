@@ -103,7 +103,9 @@ export function withExternalIds(bank: BankId, rows: Omit<ImportDraft, 'externalI
 
 // ───────────────────────── Kaspi (PDF) ─────────────────────────
 
-const KASPI_OPS = ['Покупка', 'Покупки', 'Пополнение', 'Перевод', 'Переводы', 'Снятие', 'Разное', 'Платеж', 'Платёж', 'Платежи', 'Оплата', 'Возврат'];
+const KASPI_OPS = ['Покупка', 'Покупки', 'Пополнение', 'Перевод', 'Переводы', 'Снятие', 'Разное', 'Платеж', 'Платёж', 'Платежи', 'Оплата', 'Возврат',
+  'Сатып алу', 'Толықтыру', 'Аударым', 'Аударымдар', 'Ақша алу', 'Әртүрлі', 'Төлем', 'Қайтару',
+  'Purchase', 'Purchases', 'Replenishment', 'Top-up', 'Transfer', 'Transfers', 'Withdrawal', 'Others', 'Payment', 'Refund'];
 const KASPI_ROW = new RegExp(
   String.raw`^(\d{2}\.\d{2}\.\d{2,4})\s+([+\-−–])\s*([\d\s ]+(?:[.,]\d{1,2})?)\s*(?:₸|т|тг|KZT)?\s+(` + KASPI_OPS.join('|') + String.raw`)\s*(.*)$`,
   'i',
@@ -171,8 +173,9 @@ export function parseKaspiLines(lines: string[]): ParseResult {
 
 /** Текст PDF построчно (pdf.js, в браузере). Строки собираются по координате Y. */
 export async function pdfToLines(data: ArrayBuffer): Promise<string[]> {
-  const pdfjs = await import('pdfjs-dist');
-  const worker = await import('pdfjs-dist/build/pdf.worker.min.mjs');
+  // legacy-сборка pdf.js работает и в старом Safari (iOS 15–17)
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const worker = await import('pdfjs-dist/legacy/build/pdf.worker.min.mjs');
   // разбор в основном потоке — работает и в однофайловой сборке
   (globalThis as unknown as { pdfjsWorker: unknown }).pdfjsWorker = worker;
   const doc = await pdfjs.getDocument({ data: new Uint8Array(data), isEvalSupported: false, useSystemFonts: true }).promise;
@@ -326,3 +329,60 @@ export const BANKS: { id: BankId; name: string; color: string; short: string }[]
 ];
 
 export const bankInfo = (id: BankId) => BANKS.find((b) => b.id === id) ?? BANKS[BANKS.length - 1];
+
+
+// ───────────────────────── Любой PDF: строки «дата … сумма … описание» ─────────────────────────
+
+const DATE_RE = /(\d{2})[./](\d{2})[./](\d{2,4})(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?/;
+const AMOUNT_RE = /([+\-−–]\s?)?(\d{1,3}(?:[ \u00A0\u202F]\d{3})+|\d+)(?:[.,](\d{2}))?\s*(?:₸|т\b|тг|KZT|kzt)?/g;
+const INCOME_HINT = /пополн|поступл|зачисл|возврат|кэшбэк|cashback|зарплат|толықтыру|қайтару|replenish|refund|income|приход/i;
+const SKIP_LINE = /^(итого|всего|баланс|остаток|доступно|сумма операций|обороты|total|итог)/i;
+
+/** Запасной разбор для выписок любого банка в PDF (Alatau City Bank, Halyk, Freedom…) */
+export function parseGenericLines(lines: string[], bank: BankId): ParseResult {
+  const rows: Omit<ImportDraft, 'externalId'>[] = [];
+  const skipped: string[] = [];
+  for (const raw of lines) {
+    const line = raw.replace(/\s+/g, ' ').trim();
+    if (line.length < 8 || SKIP_LINE.test(line)) continue;
+    const dm = line.match(DATE_RE);
+    if (!dm || dm.index === undefined || dm.index > 25) continue; // дата должна быть в начале строки
+    const date = parseDate(dm[0].split(' ')[0]);
+    if (!date) continue;
+    const rest = line.slice(dm.index + dm[0].length);
+    // ищем суммы: с копейками или со знаком/валютой — чтобы не спутать с номерами
+    const amounts: { v: number; signed: boolean; idx: number; len: number }[] = [];
+    for (const m of rest.matchAll(AMOUNT_RE)) {
+      const hasFrac = m[3] !== undefined;
+      const hasSign = !!m[1];
+      const hasCur = /₸|т\b|тг|kzt/i.test(m[0]);
+      if (!hasFrac && !hasSign && !hasCur) continue;
+      const v = parseAmount(m[0]);
+      if (v == null || v === 0) continue;
+      amounts.push({ v, signed: hasSign, idx: m.index ?? 0, len: m[0].length });
+    }
+    if (!amounts.length) {
+      skipped.push(line.slice(0, 120));
+      continue;
+    }
+    // если сумм несколько (сумма + остаток), берём первую со знаком, иначе первую
+    const pick = amounts.find((a) => a.signed) ?? amounts[0];
+    let description = (rest.slice(0, pick.idx) + ' ' + rest.slice(pick.idx + pick.len))
+      .replace(AMOUNT_RE, (m) => (/[.,]\d{2}|₸|kzt/i.test(m) ? ' ' : m))
+      .replace(DATE_RE, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!description) description = 'Операция';
+    // знак «+»/«−» решает; без знака — по словам («пополнение», «зачисление»…)
+    const income = pick.signed ? pick.v > 0 : INCOME_HINT.test(description);
+    rows.push({ date, amount: Math.abs(pick.v), type: income ? 'income' : 'expense', description, operation: '' });
+  }
+  return { drafts: withExternalIds(bank, rows), skipped };
+}
+
+/** Kaspi-формат, если не подошёл — универсальный */
+export function parsePdfLines(lines: string[], bank: BankId): ParseResult & { format: 'kaspi' | 'generic' } {
+  const k = parseKaspiLines(lines);
+  if (k.drafts.length) return { ...k, format: 'kaspi' };
+  return { ...parseGenericLines(lines, bank), format: 'generic' };
+}

@@ -4,7 +4,7 @@ import type { Account, BankId, Transaction } from '../types';
 import { useStore } from '../store/AppStore';
 import { useToast } from '../store/Toasts';
 import {
-  BANKS, bankInfo, detectColumns, parseKaspiLines, pdfToLines, readSheet, sheetToDrafts,
+  BANKS, bankInfo, detectColumns, parsePdfLines, pdfToLines, readSheet, sheetToDrafts,
   type Cell, type ColumnMap, type ImportDraft, type ParseResult,
 } from '../lib/bankImport';
 import { isTransferLike, merchantKey, suggestCategory } from '../lib/categorize';
@@ -28,6 +28,7 @@ const HOWTO: Partial<Record<BankId, string[]>> = {
   halyk: ['Homebank → Карта → «Выписка»', 'Выберите период и формат Excel (или CSV)', 'Сохраните файл и загрузите его сюда'],
   freedom: ['Freedom Bank → Карта → «Выписка»', 'Выберите Excel/CSV и период', 'Сохраните файл и загрузите его сюда'],
   jusan: ['Jusan → Карта → «Выписка по счёту»', 'Выберите Excel и период', 'Сохраните файл и загрузите его сюда'],
+  alatau: ['Приложение Alatau City Bank → Карта → «Выписка»', 'Выберите период и формат PDF (или Excel)', '«Поделиться» → «Сохранить в Файлы» → загрузите файл сюда'],
 };
 
 export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -38,6 +39,7 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
   const [bank, setBank] = useState<BankId>('kaspi');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [pdfText, setPdfText] = useState<string[] | null>(null);
   const [sheet, setSheet] = useState<Cell[][] | null>(null);
   const [map, setMap] = useState<ColumnMap | null>(null);
   const [result, setResult] = useState<ParseResult | null>(null);
@@ -95,16 +97,20 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
 
   const onFile = async (f: File) => {
     setError('');
+    setPdfText(null);
     setBusy(true);
     try {
       const isPdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
       if (isPdf) {
         const lines = await pdfToLines(await f.arrayBuffer());
-        const res = parseKaspiLines(lines);
+        setPdfText(lines);
+        if (!lines.join('').trim()) {
+          setError('В PDF нет текста — похоже, это скан или фото. Скачайте выписку заново из приложения банка (кнопка «Выписка» → PDF), а не скриншотом.');
+          return;
+        }
+        const res = parsePdfLines(lines, bank);
         if (!res.drafts.length) {
-          setError(bank === 'kaspi'
-            ? 'В файле не нашлось операций. Проверьте, что это выписка Kaspi в PDF (не скриншот), или пришлите пример — добавим поддержку.'
-            : 'Из PDF этого банка операции пока не читаются. Выгрузите выписку в Excel или CSV.');
+          setError('Текст в PDF есть, но строки с операциями не распознаны. Откройте «Показать текст из PDF» ниже и пришлите скриншот — добавлю этот формат.');
           return;
         }
         buildRows(res, bank);
@@ -129,7 +135,10 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
       }
     } catch (e) {
       console.error(e);
-      setError('Не удалось прочитать файл. Поддерживаются PDF (Kaspi), Excel (.xlsx, .xls) и CSV.');
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(/password|encrypt/i.test(msg)
+        ? 'PDF защищён паролем. Сохраните выписку без пароля и попробуйте снова.'
+        : `Не удалось прочитать файл (${msg.slice(0, 120)}). Поддерживаются PDF, Excel (.xlsx, .xls) и CSV.`);
     } finally {
       setBusy(false);
     }
@@ -256,7 +265,7 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
                 <BankBadge bank={b.id} />
                 <div className="min-w-0">
                   <div className="truncate text-sm font-bold">{b.name}</div>
-                  <div className="text-[11px] font-semibold text-navy-400">{b.id === 'kaspi' ? 'PDF' : 'Excel / CSV'}</div>
+                  <div className="text-[11px] font-semibold text-navy-400">{b.id === 'kaspi' ? 'PDF' : 'PDF / Excel / CSV'}</div>
                 </div>
               </button>
             ))}
@@ -286,6 +295,12 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
             {busy ? <><Loader2 className="h-5 w-5 animate-spin" /> Читаю выписку…</> : <><Upload className="h-5 w-5" /> Выбрать файл</>}
           </button>
           {error && <div className="flex gap-2 rounded-2xl bg-rose-50 p-3 text-[13px] font-medium text-rose-600 dark:bg-rose-500/10 dark:text-rose-300"><AlertTriangle className="h-4 w-4 shrink-0" />{error}</div>}
+          {error && pdfText && pdfText.length > 0 && (
+            <details className="rounded-2xl bg-navy-50 px-3 py-2 text-[12px] text-navy-600 dark:bg-navy-850 dark:text-navy-300">
+              <summary className="cursor-pointer font-semibold">Показать текст из PDF ({pdfText.length} строк)</summary>
+              <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap font-mono text-[11px]">{pdfText.slice(0, 60).join('\n')}</pre>
+            </details>
+          )}
           <div className="flex items-start gap-2 text-[12px] text-navy-400">
             {bank === 'kaspi' ? <FileText className="h-4 w-4 shrink-0" /> : <FileSpreadsheet className="h-4 w-4 shrink-0" />}
             Файл читается прямо на устройстве и никуда не отправляется. В приложение попадут только дата, сумма и описание операций.

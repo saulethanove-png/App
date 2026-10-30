@@ -88,3 +88,35 @@ describe('обучение правилам', () => {
     expect(suggestCategory('MAGNUM SUPER', 'expense', rules).categoryId).toBe('food');
   });
 });
+
+import { parseGenericLines, parsePdfLines } from './bankImport';
+describe('универсальный PDF', () => {
+  it('Alatau / другой банк: дата, описание, сумма, остаток', () => {
+    const lines = [
+      'Выписка по карте Alatau City Bank',
+      'Дата Описание Сумма Остаток',
+      '28.10.2026 14:22 MAGNUM ALMATY KZ -3 450,00 KZT 120 550,00',
+      '27.10.2026 YANDEX.GO -1 200,00 KZT 124 000,00',
+      '25.10.2026 Зачисление заработной платы 250 000,00 KZT 125 200,00',
+      '24.10.2026 Номер договора 123456',
+      'Итого 3 позиции',
+    ];
+    const r = parseGenericLines(lines, 'alatau');
+    expect(r.drafts.map((d) => [d.date, d.type, d.amount])).toEqual([
+      ['2026-10-28', 'expense', 345000],
+      ['2026-10-27', 'expense', 120000],
+      ['2026-10-25', 'income', 25000000],
+    ]);
+    expect(r.drafts[0].description).toBe('MAGNUM ALMATY KZ');
+  });
+  it('Kaspi на казахском распознаётся', () => {
+    const r = parsePdfLines(['29.10.26 - 2 500,00 ₸ Сатып алу Magnum'], 'kaspi');
+    expect(r.format).toBe('kaspi');
+    expect(r.drafts[0]).toMatchObject({ amount: 250000, type: 'expense', description: 'Magnum' });
+  });
+  it('если формат не Kaspi — переходит к универсальному', () => {
+    const r = parsePdfLines(['01.10.2026 Оплата Wildberries 12 990,00 ₸'], 'kaspi');
+    expect(r.format).toBe('generic');
+    expect(r.drafts[0]).toMatchObject({ amount: 1299000, type: 'expense' });
+  });
+});
