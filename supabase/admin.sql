@@ -168,3 +168,20 @@ grant execute on function public.admin_stats(), public.admin_list_users(), publi
 -- подставьте свою почту и выполните эту строку отдельно:
 --
 -- insert into public.admins (user_id) select id from auth.users where email = 'ВАША@ПОЧТА' on conflict do nothing;
+
+-- Приглашения в администраторы по почте: если человек ещё не зарегистрирован,
+-- права выдадутся автоматически сразу после регистрации.
+create table if not exists public.admin_invites (email text primary key, created_at timestamptz not null default now());
+alter table public.admin_invites enable row level security;
+
+create or replace function public.grant_admin_on_signup() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if exists (select 1 from public.admin_invites where lower(email) = lower(new.email)) then
+    insert into public.admins (user_id) values (new.id) on conflict do nothing;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists grant_admin_on_signup on auth.users;
+create trigger grant_admin_on_signup after insert on auth.users for each row execute function public.grant_admin_on_signup();

@@ -1,0 +1,11 @@
+-- MONEY FLOW — мгновенная синхронизация между устройствами (Supabase Realtime)
+-- Запустите в SQL Editor один раз. Повторный запуск безопасен.
+do $$
+declare t text;
+begin
+  foreach t in array array['transactions', 'accounts', 'goals', 'category_rules', 'user_settings'] loop
+    if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;

@@ -93,6 +93,7 @@ export function ProfilePage() {
                     : cloud.status === 'offline' ? `Нет интернета · ${cloud.pending} изменений ждут отправки`
                     : cloud.status === 'error' ? 'Ошибка синхронизации — попробуйте ещё раз'
                     : cloud.pending ? `Отправляется: ${cloud.pending}`
+                    : cloud.live ? `Мгновенная синхронизация включена${cloud.lastSync ? ` · ${new Date(cloud.lastSync).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}` : ''}`
                     : cloud.lastSync ? `Синхронизировано в ${new Date(cloud.lastSync).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}` : 'Данные хранятся в облаке'}
                 </div>
               </div>

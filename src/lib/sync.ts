@@ -71,7 +71,7 @@ type R = Record<string, unknown>;
 const num = (v: unknown) => Number(v);
 const opt = <T,>(v: unknown) => (v == null ? undefined : (v as T));
 
-const fromRow = {
+export const fromRow = {
   transactions: (r: R): Transaction => ({
     id: String(r.id), type: r.type as Transaction['type'], amount: num(r.amount), categoryId: String(r.category_id), date: String(r.date),
     note: opt<string>(r.note), accountId: opt<string>(r.account_id), source: opt<Transaction['source']>(r.source),
@@ -170,4 +170,48 @@ export async function pullState(sb: SupabaseClient, userId: string, base: AppSta
     goals: goals.map(fromRow.goals),
     rules: rules.map(fromRow.category_rules),
   };
+}
+
+// ───────── мгновенные изменения (Supabase Realtime) ─────────
+
+export const REALTIME_TABLES = ['transactions', 'accounts', 'goals', 'category_rules', 'user_settings'] as const;
+export type RealtimeTable = (typeof REALTIME_TABLES)[number];
+
+const KEY: Record<Kind, 'transactions' | 'accounts' | 'goals' | 'rules'> = {
+  transactions: 'transactions', accounts: 'accounts', goals: 'goals', category_rules: 'rules',
+};
+
+/**
+ * Применить изменение, пришедшее с другого устройства, к локальному состоянию.
+ * Возвращает то же состояние, если ничего не поменялось (например, это эхо нашей же записи).
+ */
+export function applyRemote(
+  s: AppState,
+  table: RealtimeTable,
+  event: 'INSERT' | 'UPDATE' | 'DELETE',
+  row: Record<string, unknown> | null,
+  old: Record<string, unknown> | null,
+): AppState {
+  if (table === 'user_settings') {
+    if (event === 'DELETE' || !row) return s;
+    const profile = { ...s.profile, ...((row.profile as object) ?? {}) };
+    const budget = { ...s.budget, ...((row.budget as object) ?? {}) };
+    const learning = { ...s.learning, ...((row.learning as object) ?? {}) };
+    const alertsShown = Array.isArray(row.alerts_shown) ? (row.alerts_shown as string[]) : s.alertsShown;
+    const same = JSON.stringify([s.profile, s.budget, s.learning, s.alertsShown]) === JSON.stringify([profile, budget, learning, alertsShown]);
+    return same ? s : { ...s, profile, budget, learning, alertsShown };
+  }
+  const key = KEY[table];
+  const list = s[key] as Item[];
+  if (event === 'DELETE') {
+    const id = String(old?.id ?? '');
+    if (!id || !list.some((x) => x.id === id)) return s;
+    return { ...s, [key]: list.filter((x) => x.id !== id) };
+  }
+  if (!row) return s;
+  const item = fromRow[table](row) as Item;
+  const i = list.findIndex((x) => x.id === item.id);
+  if (i >= 0 && JSON.stringify(list[i]) === JSON.stringify({ ...list[i], ...item })) return s; // эхо
+  const next = i >= 0 ? list.map((x, j) => (j === i ? item : x)) : [...list, item];
+  return { ...s, [key]: next };
 }

@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import type { User } from '@supabase/supabase-js';
 import type { AppState } from '../types';
 import { supabase, cloudEnabled } from '../lib/supabase';
-import { diffState, fullUpload, loadQueue, pullState, pushOps, saveQueue, type Op } from '../lib/sync';
+import { REALTIME_TABLES, applyRemote, diffState, fullUpload, loadQueue, pullState, pushOps, saveQueue, type Op, type RealtimeTable } from '../lib/sync';
 import { emptyState } from '../lib/seed';
 import { useStore } from './AppStore';
 import { useToast } from './Toasts';
@@ -19,6 +19,8 @@ interface CloudCtx {
   isAdmin: boolean;
   guest: boolean;
   status: SyncStatus;
+  /** изменения с других устройств приходят мгновенно */
+  live: boolean;
   lastSync: number | null;
   pending: number;
   choice: Choice;
@@ -71,6 +73,8 @@ export function CloudProvider({ children }: { children: ReactNode }) {
   const [choice, setChoice] = useState<Choice>(null);
   const [recovery, setRecovery] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [linkedId, setLinkedId] = useState<string | null>(null);
+  const [live, setLive] = useState(false);
 
   // права администратора проверяются в базе (функция is_admin)
   useEffect(() => {
@@ -169,6 +173,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
     setPending(queue.current.size);
     if (ls.get(OWNER) === u.id) {
       linked.current = true;
+      setLinkedId(u.id);
       await pull();
       return;
     }
@@ -197,6 +202,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
     replaceLocal(s);
     ls.set(OWNER, u.id);
     linked.current = true;
+      setLinkedId(u.id);
     setChoice(null);
     if (ops.length) {
       for (const o of ops) queue.current.set(`${o.kind}:${o.id}`, o);
@@ -246,6 +252,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
       setUser(u);
       if (changed && u) {
         linked.current = false;
+        setLinkedId(null);
         link(u);
       }
     });
@@ -262,6 +269,52 @@ export function CloudProvider({ children }: { children: ReactNode }) {
     if (!linked.current || !userRef.current || prev === state) return;
     enqueue(diffState(prev, state));
   }, [state, enqueue]);
+
+  // мгновенные изменения с других устройств (Supabase Realtime)
+  useEffect(() => {
+    const sb = supabase;
+    if (!sb || !linkedId) return;
+    const kindOf = (t: RealtimeTable) => (t === 'user_settings' ? 'settings' : t);
+    let wasLive = false;
+    let ch = sb.channel(`mf-${linkedId}`);
+    for (const table of REALTIME_TABLES) {
+      ch = ch.on(
+        'postgres_changes' as never,
+        { event: '*', schema: 'public', table, filter: `user_id=eq.${linkedId}` },
+        (payload: { eventType: 'INSERT' | 'UPDATE' | 'DELETE'; new: Record<string, unknown>; old: Record<string, unknown> }) => {
+          const id = table === 'user_settings' ? 'main' : String((payload.new as { id?: string })?.id ?? (payload.old as { id?: string })?.id ?? '');
+          // своё неотправленное изменение важнее пришедшего
+          if (queue.current.has(`${kindOf(table)}:${id}`)) return;
+          const next = applyRemote(stateRef.current, table, payload.eventType, payload.eventType === 'DELETE' ? null : payload.new, payload.old);
+          if (next !== stateRef.current) {
+            stateRef.current = next;
+            replaceLocal(next);
+            setLastSync(Date.now());
+          }
+        },
+      );
+    }
+    ch.subscribe((st: string) => {
+      const ok = st === 'SUBSCRIBED';
+      setLive(ok);
+      // после переподключения забираем то, что могли пропустить
+      if (ok && wasLive) pull();
+      if (ok) wasLive = true;
+    });
+    return () => {
+      setLive(false);
+      sb.removeChannel(ch);
+    };
+  }, [linkedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // запасной вариант, если Realtime недоступен: проверяем облако раз в 30 секунд
+  useEffect(() => {
+    if (!linkedId || live) return;
+    const t = window.setInterval(() => {
+      if (document.visibilityState === 'visible' && navigator.onLine) pull();
+    }, 30_000);
+    return () => window.clearInterval(t);
+  }, [linkedId, live, pull]);
 
   // сеть появилась / вернулись в приложение — синхронизируемся
   useEffect(() => {
@@ -293,6 +346,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
     isAdmin,
     guest,
     status,
+    live,
     lastSync,
     pending,
     choice,
@@ -338,6 +392,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
       await flush().catch(() => {});
       const u = userRef.current;
       linked.current = false;
+      setLinkedId(null);
       await supabase.auth.signOut();
       if (u) {
         queue.current = new Map();

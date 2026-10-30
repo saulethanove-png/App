@@ -35,3 +35,31 @@ describe('синхронизация', () => {
     expect(mergeStates(cloud, local).transactions.map((x) => x.id)).toEqual(['x1', 'x3']);
   });
 });
+
+import { applyRemote } from './sync';
+describe('мгновенная синхронизация', () => {
+  const base = demoState('2026-10-30');
+  const row = { id: 'rt1', type: 'expense', amount: 77700, category_id: 'transport', date: '2026-10-30', note: 'Такси', account_id: null, source: 'manual', external_id: null, raw_description: null, created_at: 5 };
+  it('новая операция с другого устройства появляется', () => {
+    const s = applyRemote(base, 'transactions', 'INSERT', row, null);
+    expect(s.transactions.length).toBe(base.transactions.length + 1);
+    expect(s.transactions.at(-1)).toMatchObject({ id: 'rt1', amount: 77700, note: 'Такси' });
+  });
+  it('эхо своей записи не меняет состояние', () => {
+    const s1 = applyRemote(base, 'transactions', 'INSERT', row, null);
+    expect(applyRemote(s1, 'transactions', 'UPDATE', row, null)).toBe(s1);
+  });
+  it('изменение и удаление', () => {
+    const s1 = applyRemote(base, 'transactions', 'INSERT', row, null);
+    const s2 = applyRemote(s1, 'transactions', 'UPDATE', { ...row, amount: 100 }, null);
+    expect(s2.transactions.find((t) => t.id === 'rt1')?.amount).toBe(100);
+    const s3 = applyRemote(s2, 'transactions', 'DELETE', null, { id: 'rt1' });
+    expect(s3.transactions.some((t) => t.id === 'rt1')).toBe(false);
+    expect(applyRemote(s3, 'transactions', 'DELETE', null, { id: 'rt1' })).toBe(s3);
+  });
+  it('настройки', () => {
+    const s = applyRemote(base, 'user_settings', 'UPDATE', { profile: base.profile, budget: { ...base.budget, monthlyLimit: 1 }, learning: base.learning, alerts_shown: base.alertsShown }, null);
+    expect(s.budget.monthlyLimit).toBe(1);
+    expect(applyRemote(s, 'user_settings', 'UPDATE', { profile: s.profile, budget: s.budget, learning: s.learning, alerts_shown: s.alertsShown }, null)).toBe(s);
+  });
+});
