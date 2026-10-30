@@ -319,6 +319,7 @@ export const BANKS: { id: BankId; name: string; color: string; short: string }[]
   { id: 'halyk', name: 'Halyk Bank', color: '#1C9B56', short: 'H' },
   { id: 'freedom', name: 'Freedom Bank', color: '#43B02A', short: 'F' },
   { id: 'jusan', name: 'Jusan Bank', color: '#F47B20', short: 'J' },
+  { id: 'alatau', name: 'Alatau City Bank', color: '#0E8C8C', short: 'A' },
   { id: 'bcc', name: 'Банк ЦентрКредит', color: '#2E5AAC', short: 'Ц' },
   { id: 'forte', name: 'ForteBank', color: '#A1005E', short: 'F' },
   { id: 'other', name: 'Другой банк', color: '#64748B', short: '₸' },

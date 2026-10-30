@@ -15,14 +15,14 @@ export interface Transaction {
   /** Счёт; если не указан — «Наличные / основной» */
   accountId?: string;
   /** Откуда операция: вручную или из выписки банка */
-  source?: 'manual' | 'import';
+  source?: 'manual' | 'import' | 'wallet';
   /** Отпечаток операции из выписки — защищает от повторного импорта */
   externalId?: string;
   /** Исходное описание из выписки (по нему обучаются правила категорий) */
   rawDescription?: string;
 }
 
-export type BankId = 'kaspi' | 'halyk' | 'freedom' | 'jusan' | 'bcc' | 'forte' | 'other';
+export type BankId = 'kaspi' | 'halyk' | 'freedom' | 'jusan' | 'alatau' | 'bcc' | 'forte' | 'other';
 
 export interface Account {
   id: string;

@@ -20,6 +20,7 @@ type Action =
   | { type: 'alerts/shown'; ids: string[] }
   | { type: 'tx/import'; txs: Omit<Transaction, 'id' | 'createdAt'>[]; rules: Omit<CategoryRule, 'id' | 'createdAt'>[]; account?: Account }
   | { type: 'tx/recategorize'; ids: string[]; categoryId: string }
+  | { type: 'tx/autocategorize'; categories: Record<string, string> }
   | { type: 'account/upsert'; account: Account }
   | { type: 'account/delete'; id: string }
   | { type: 'rule/upsert'; rule: Omit<CategoryRule, 'id' | 'createdAt'> }
@@ -49,6 +50,10 @@ function reducer(s: AppState, a: Action): AppState {
         rules,
         transactions: [...s.transactions, ...a.txs.map((t, i) => ({ ...t, id: uid() + i.toString(36), createdAt: now + i }))],
       };
+    }
+    case 'tx/autocategorize': {
+      const c = a.categories;
+      return { ...s, transactions: s.transactions.map((t) => (c[t.id] && t.categoryId === 'auto' ? { ...t, categoryId: c[t.id] } : t)) };
     }
     case 'tx/recategorize': {
       const ids = new Set(a.ids);

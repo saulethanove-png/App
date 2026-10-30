@@ -21,6 +21,8 @@ interface CloudCtx {
   status: SyncStatus;
   /** изменения с других устройств приходят мгновенно */
   live: boolean;
+  /** данные аккаунта загружены на устройство */
+  linked: boolean;
   lastSync: number | null;
   pending: number;
   choice: Choice;
@@ -347,6 +349,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
     guest,
     status,
     live,
+    linked: !!linkedId,
     lastSync,
     pending,
     choice,

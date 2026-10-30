@@ -67,9 +67,20 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
   const existingIds = useMemo(() => new Set(state.transactions.map((t) => t.externalId).filter(Boolean) as string[]), [state.transactions]);
 
   const buildRows = (res: ParseResult, b: BankId) => {
+    // покупки, уже записанные через Apple Pay: та же сумма, дата ±1 день (банк проводит с задержкой)
+    const wallet = state.transactions.filter((t) => t.source === 'wallet');
+    const usedWallet = new Set<string>();
+    const dayDiff = (a: string, b: string) => Math.abs((new Date(a).getTime() - new Date(b).getTime()) / 86_400_000);
     const list: Row[] = res.drafts.map((d) => {
       const s = suggestCategory(d.description, d.type, state.rules, d.operation);
-      const duplicate = existingIds.has(d.externalId);
+      let duplicate = existingIds.has(d.externalId);
+      if (!duplicate && d.type === 'expense') {
+        const w = wallet.find((t) => !usedWallet.has(t.id) && t.amount === d.amount && dayDiff(t.date, d.date) <= 1);
+        if (w) {
+          usedWallet.add(w.id);
+          duplicate = true;
+        }
+      }
       const transfer = isTransferLike(d.description, d.operation) && s.reason !== 'rule';
       return { ...d, categoryId: s.categoryId, suggested: s.categoryId, reason: s.reason, duplicate, transfer, include: !duplicate };
     });

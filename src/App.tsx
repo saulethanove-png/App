@@ -7,6 +7,7 @@ import { useStore } from './store/AppStore';
 import { useToast } from './store/Toasts';
 import { currentMonthPeriod, inPeriod, newBudgetAlerts } from './lib/calc';
 import { getCategory } from './lib/categories';
+import { suggestCategory } from './lib/categorize';
 import { formatMoney } from './lib/format';
 import { TransactionForm } from './components/TransactionForm';
 import { ImportWizard } from './components/ImportWizard';
@@ -58,7 +59,7 @@ function readHash(): { route: Route; params: URLSearchParams } {
 export default function App() {
   const { state, dispatch, today } = useStore();
   const toast = useToast();
-  const { isAdmin, choice } = useCloud();
+  const { isAdmin, choice, enabled: cloudOn, user: cloudUser, linked } = useCloud();
   const [{ route: rawRoute, params }, setLoc] = useState(readHash);
   const [form, setForm] = useState<{ open: boolean; editing: Transaction | null; type: TxType }>({ open: false, editing: null, type: 'expense' });
   const [moreOpen, setMoreOpen] = useState(false);
@@ -96,9 +97,23 @@ export default function App() {
     [route, params, go],
   );
 
+  // Операции из Apple Pay приходят с категорией 'auto' — подбираем её по правилам пользователя
+  useEffect(() => {
+    const auto = state.transactions.filter((t) => t.categoryId === 'auto');
+    if (!auto.length) return;
+    const categories: Record<string, string> = {};
+    for (const t of auto) categories[t.id] = suggestCategory(t.rawDescription ?? t.note ?? '', t.type, state.rules).categoryId;
+    dispatch({ type: 'tx/autocategorize', categories });
+    const fresh = auto.filter((t) => t.source === 'wallet' && Date.now() - t.createdAt < 10 * 60_000).slice(-3);
+    for (const t of fresh) {
+      const c = getCategory(categories[t.id]);
+      toast({ kind: 'success', title: `Apple Pay: ${formatMoney(-t.amount)}`, text: `${t.note ?? 'Покупка'} → ${c.emoji} ${c.name}`, action: { label: 'Изменить', onClick: () => setForm({ open: true, editing: { ...t, categoryId: categories[t.id] }, type: t.type }) } }, 6000);
+    }
+  }, [state.transactions, state.rules, dispatch, toast]);
+
   // Предупреждения о бюджете: 80% и 100%
   useEffect(() => {
-    if (choice) return; // пока не решено, какие данные использовать
+    if (choice || (cloudOn && cloudUser && !linked)) return; // пока данные аккаунта не загружены
     const p = currentMonthPeriod(today);
     const monthTx = state.transactions.filter((t) => inPeriod(t, p));
     const alerts = newBudgetAlerts(state.budget, monthTx, today.slice(0, 7), state.alertsShown);
@@ -114,7 +129,7 @@ export default function App() {
       );
     });
     dispatch({ type: 'alerts/shown', ids: alerts.map((a) => a.id) });
-  }, [state.transactions, state.budget, state.alertsShown, today, dispatch, toast, go, choice]);
+  }, [state.transactions, state.budget, state.alertsShown, today, dispatch, toast, go, choice, cloudOn, cloudUser, linked]);
 
   const page = {
     home: <Dashboard />,

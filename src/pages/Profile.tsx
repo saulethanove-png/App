@@ -9,6 +9,7 @@ import { storageAvailable } from '../lib/storage';
 import { levelOf, xpOf } from '../lib/learn';
 import { Card, Field, Modal, SectionHeader, cx } from '../components/ui';
 import { useCloud } from '../store/Cloud';
+import { ApplePayCard } from '../components/ApplePay';
 import { Cloud, CloudOff, LogIn, LogOut, RefreshCw } from 'lucide-react';
 
 export function ProfilePage() {
@@ -116,6 +117,8 @@ export function ProfilePage() {
           )}
         </Card>
       )}
+
+      <ApplePayCard />
 
       <div className="grid gap-5 lg:grid-cols-2 lg:gap-6">
         <Card className="p-5">
