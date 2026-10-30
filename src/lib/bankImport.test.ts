@@ -120,3 +120,10 @@ describe('универсальный PDF', () => {
     expect(r.drafts[0]).toMatchObject({ amount: 1299000, type: 'expense' });
   });
 });
+
+describe('кредиты', () => {
+  it('платежи по кредиту и рассрочке попадают в «Кредиты»', () => {
+    for (const d of ['Погашение кредита', 'Kaspi Red рассрочка', 'Отбасы банк ипотека', 'Halyk кредит ежемесячный платёж'])
+      expect(suggestCategory(d, 'expense', []).categoryId).toBe('credit');
+  });
+});

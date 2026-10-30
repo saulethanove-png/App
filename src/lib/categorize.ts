@@ -45,11 +45,14 @@ const BUILTIN: Builtin[] = [
   // Транспорт
   { re: /yandex go|yandex\.go|яндекс go|яндекс такси|yandex taxi|uber|indrive|indriver|такси|taxi|onay|онай|автобус|bus|метро|metro alm|авиа|air astana|fly arystan|scat|qazaq air|aviata|chocotravel|ктж|ktz|temir|поезд|азс| azs|helios|гелиос|sinooil|синооил|kazmunaygas|qazaqoil|petrol|бензин|gas station|parking|парков|автомойк|car wash|шиномонтаж/, cat: 'transport', type: 'expense' },
 
+  // Кредиты, рассрочки, ипотека
+  { re: /кредит|рассрочк|installment|погашени|ипотек|mortgage|отбасы|otbasy|микрозайм|займ|loan|kaspi red|каспи ред/, cat: 'credit', type: 'expense' },
+
   // Подписки и связь
   { re: /netflix|spotify|apple\.com|apple com|itunes|icloud|google|youtube|yandex plus|яндекс плюс|кинопоиск|kinopoisk|ivi|okko|megogo|chatgpt|openai|anthropic|claude|steam|playstation|xbox|telegram|beeline|билайн|kcell|кселл|activ|актив|tele2|теле2|altel|алтел|kazakhtelecom|казахтелеком|id net|интернет|internet|подписк|subscription/, cat: 'subscriptions', type: 'expense' },
 
   // Жильё и коммуналка
-  { re: /ерц|erc|алсеко|alseco|астана-ерц|коммунал|ксж|(?:^|\s)оси(?=\s|$)|аренд|rent|квартплат|энерго|energo|электро|водоканал|тепло|газоснаб|kazakhgaz|алматы су|астана су|сервис-центр|krisha|крыша|ипотек|mortgage|отбасы|otbasy/, cat: 'housing', type: 'expense' },
+  { re: /ерц|erc|алсеко|alseco|астана-ерц|коммунал|ксж|(?:^|\s)оси(?=\s|$)|аренд|rent|квартплат|энерго|energo|электро|водоканал|тепло|газоснаб|kazakhgaz|алматы су|астана су|сервис-центр|krisha|крыша/, cat: 'housing', type: 'expense' },
 
   // Здоровье
   { re: /аптек|apteka|pharm|фарм|europharma|европharma|еврофарма|биосфер|sadyhan|садыхан|med|мед|клиник|clinic|стомат|dental|invivo|инвиво|олимп|olymp|kdl|лаборат|hospital|больниц|оптика|optic|фитнес|fitness|gym|спортзал/, cat: 'health', type: 'expense' },

@@ -9,6 +9,7 @@ export const EXPENSE_CATEGORIES: Category[] = [
   { id: 'health', name: 'Здоровье', emoji: '💊', color: '#EF4444', type: 'expense' },
   { id: 'education', name: 'Образование', emoji: '📚', color: '#06B6D4', type: 'expense' },
   { id: 'subscriptions', name: 'Подписки', emoji: '💳', color: '#A3E635', type: 'expense' },
+  { id: 'credit', name: 'Кредиты', emoji: '🏦', color: '#F43F5E', type: 'expense' },
   { id: 'other-exp', name: 'Другое', emoji: '📦', color: '#94A3B8', type: 'expense' },
 ];
 
