@@ -198,8 +198,8 @@ function hash(str: string): number {
 }
 
 /** 3 задания на день — одинаковые в течение дня */
-export function tasksForDay(day: string): DailyTask[] {
-  const pool = [...TASK_POOL];
+export function tasksForDay(day: string, source: DailyTask[] = TASK_POOL): DailyTask[] {
+  const pool = [...source];
   const out: DailyTask[] = [];
   let h = hash(day);
   while (out.length < 3 && pool.length) {

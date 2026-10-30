@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
-  BarChart3, GraduationCap, Home, LayoutGrid, ListOrdered, PiggyBank, Plus, Target, UserRound, Wallet,
+  BarChart3, GraduationCap, Home, LayoutGrid, ListOrdered, PiggyBank, Plus, ShieldCheck, Target, UserRound, Wallet,
 } from 'lucide-react';
 import type { Transaction, TxType } from './types';
 import { useStore } from './store/AppStore';
@@ -18,8 +18,10 @@ import { BudgetPage } from './pages/Budget';
 import { Goals } from './pages/Goals';
 import { Learn } from './pages/Learn';
 import { ProfilePage } from './pages/Profile';
+import { AdminPage } from './pages/Admin';
+import { useCloud } from './store/Cloud';
 
-export type Route = 'home' | 'transactions' | 'analytics' | 'budget' | 'goals' | 'learn' | 'profile';
+export type Route = 'home' | 'transactions' | 'analytics' | 'budget' | 'goals' | 'learn' | 'profile' | 'admin';
 
 const NAV: { route: Route; label: string; icon: typeof Home }[] = [
   { route: 'home', label: 'Главная', icon: Home },
@@ -29,6 +31,7 @@ const NAV: { route: Route; label: string; icon: typeof Home }[] = [
   { route: 'goals', label: 'Цели', icon: Target },
   { route: 'learn', label: 'Обучение', icon: GraduationCap },
   { route: 'profile', label: 'Профиль', icon: UserRound },
+  { route: 'admin', label: 'Админка', icon: ShieldCheck },
 ];
 
 interface UI {
@@ -55,9 +58,13 @@ function readHash(): { route: Route; params: URLSearchParams } {
 export default function App() {
   const { state, dispatch, today } = useStore();
   const toast = useToast();
-  const [{ route, params }, setLoc] = useState(readHash);
+  const { isAdmin, choice } = useCloud();
+  const [{ route: rawRoute, params }, setLoc] = useState(readHash);
   const [form, setForm] = useState<{ open: boolean; editing: Transaction | null; type: TxType }>({ open: false, editing: null, type: 'expense' });
   const [moreOpen, setMoreOpen] = useState(false);
+  // раздел админки существует только для администратора
+  const route: Route = rawRoute === 'admin' && !isAdmin ? 'home' : rawRoute;
+  const nav = NAV.filter((n) => n.route !== 'admin' || isAdmin);
   const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => {
@@ -91,6 +98,7 @@ export default function App() {
 
   // Предупреждения о бюджете: 80% и 100%
   useEffect(() => {
+    if (choice) return; // пока не решено, какие данные использовать
     const p = currentMonthPeriod(today);
     const monthTx = state.transactions.filter((t) => inPeriod(t, p));
     const alerts = newBudgetAlerts(state.budget, monthTx, today.slice(0, 7), state.alertsShown);
@@ -106,7 +114,7 @@ export default function App() {
       );
     });
     dispatch({ type: 'alerts/shown', ids: alerts.map((a) => a.id) });
-  }, [state.transactions, state.budget, state.alertsShown, today, dispatch, toast, go]);
+  }, [state.transactions, state.budget, state.alertsShown, today, dispatch, toast, go, choice]);
 
   const page = {
     home: <Dashboard />,
@@ -116,6 +124,7 @@ export default function App() {
     goals: <Goals />,
     learn: <Learn />,
     profile: <ProfilePage />,
+    admin: isAdmin ? <AdminPage /> : <Dashboard />,
   }[route];
 
   const bottom: Route[] = ['home', 'transactions', 'analytics'];
@@ -128,7 +137,7 @@ export default function App() {
         <aside className="sticky top-0 hidden h-dvh w-[260px] shrink-0 flex-col border-r border-navy-100 bg-white px-4 py-6 dark:border-navy-850 dark:bg-navy-900/60 lg:flex">
           <Logo className="mb-8 px-2" />
           <nav className="flex flex-1 flex-col gap-1">
-            {NAV.map(({ route: r, label, icon: Icon }) => (
+            {nav.map(({ route: r, label, icon: Icon }) => (
               <button
                 key={r}
                 onClick={() => go(r)}
@@ -179,7 +188,8 @@ export default function App() {
               { r: 'goals', icon: PiggyBank, title: 'Цели', text: 'Накопления' },
               { r: 'learn', icon: GraduationCap, title: 'Обучение', text: 'Статьи и задания' },
               { r: 'profile', icon: UserRound, title: 'Профиль', text: 'Тема, экспорт' },
-            ] as const).map(({ r, icon: Icon, title, text }) => (
+              ...(isAdmin ? [{ r: 'admin', icon: ShieldCheck, title: 'Админка', text: 'Пользователи и контент' }] : []),
+            ] as { r: Route; icon: typeof Home; title: string; text: string }[]).map(({ r, icon: Icon, title, text }) => (
               <button
                 key={r}
                 onClick={() => {

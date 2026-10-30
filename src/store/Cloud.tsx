@@ -6,6 +6,7 @@ import { diffState, fullUpload, loadQueue, pullState, pushOps, saveQueue, type O
 import { emptyState } from '../lib/seed';
 import { useStore } from './AppStore';
 import { useToast } from './Toasts';
+import { adminApi } from '../lib/admin';
 
 export type SyncStatus = 'off' | 'idle' | 'syncing' | 'offline' | 'error';
 
@@ -15,6 +16,7 @@ interface CloudCtx {
   enabled: boolean;
   ready: boolean; // сессия проверена
   user: User | null;
+  isAdmin: boolean;
   guest: boolean;
   status: SyncStatus;
   lastSync: number | null;
@@ -68,6 +70,15 @@ export function CloudProvider({ children }: { children: ReactNode }) {
   const [pending, setPending] = useState(0);
   const [choice, setChoice] = useState<Choice>(null);
   const [recovery, setRecovery] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // права администратора проверяются в базе (функция is_admin)
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    let alive = true;
+    adminApi.isAdmin().then((v) => alive && setIsAdmin(v));
+    return () => { alive = false; };
+  }, [user]);
 
   const stateRef = useRef(state);
   const prevRef = useRef(state);
@@ -279,6 +290,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
     enabled: cloudEnabled,
     ready,
     user,
+    isAdmin,
     guest,
     status,
     lastSync,

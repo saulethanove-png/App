@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, CheckCircle2, ChevronDown, Clock, Lock, Search, Sparkles } from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { useToast } from '../store/Toasts';
-import { ARTICLES, GLOSSARY, TIPS, achievements, isTaskDone, levelOf, tasksForDay, xpOf, type Article } from '../lib/learn';
+import { achievements, isTaskDone, levelOf, tasksForDay, xpOf, type Article } from '../lib/learn';
+import { useContent } from '../store/Content';
 import { Card, Modal, SectionHeader, Segmented, cx } from '../components/ui';
 
 type Tab = 'main' | 'articles' | 'glossary' | 'achievements';
@@ -15,7 +16,10 @@ export function Learn() {
 
   const xp = xpOf(state, today);
   const lvl = levelOf(xp);
-  const tasks = tasksForDay(today);
+  const content = useContent();
+  const ARTICLES = content.visible.articles;
+  const TIPS = content.visible.tips;
+  const tasks = tasksForDay(today, content.visible.tasks);
   const ach = achievements(state, today);
   const unlocked = ach.filter((a) => a.unlocked).length;
 
@@ -209,7 +213,8 @@ function ArticleCard({ a, read, onOpen }: { a: Article; read: boolean; onOpen: (
 function Glossary() {
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<string | null>(null);
-  const list = useMemo(() => GLOSSARY.filter((g) => (g.term + g.def).toLowerCase().includes(q.toLowerCase())), [q]);
+  const GLOSSARY = useContent().visible.terms;
+  const list = useMemo(() => GLOSSARY.filter((g) => (g.term + g.def).toLowerCase().includes(q.toLowerCase())), [q, GLOSSARY]);
   return (
     <div className="space-y-3">
       <div className="relative">

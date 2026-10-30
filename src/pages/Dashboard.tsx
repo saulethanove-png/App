@@ -8,6 +8,7 @@ import { balance, budgetStatus, currentMonthPeriod, dailySeries, goalProgress, i
 import { TIPS, levelOf, xpOf } from '../lib/learn';
 import { TransactionItem } from '../components/TransactionItem';
 import { AccountsCard } from '../components/Accounts';
+import { useContent } from '../store/Content';
 import { Card, ChartTooltip, Empty, Progress, SectionHeader, Segmented, cx } from '../components/ui';
 
 function greeting() {
@@ -38,7 +39,8 @@ export function Dashboard() {
   const chartTotal = series.reduce((a, b) => a + b.expense, 0);
 
   const goal = [...state.goals].sort((a, b) => goalProgress(b.saved, b.target).ratio - goalProgress(a.saved, a.target).ratio).find((g) => !goalProgress(g.saved, g.target).done) ?? state.goals[0];
-  const tip = TIPS[parseISO(today).getDate() % TIPS.length];
+  const tips = useContent().visible.tips;
+  const tip = tips.length ? tips[parseISO(today).getDate() % tips.length] : TIPS[0];
   const lvl = levelOf(xpOf(state, today));
   const isDark = state.profile.theme === 'dark' || (state.profile.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 

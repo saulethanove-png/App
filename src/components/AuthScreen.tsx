@@ -94,6 +94,11 @@ export function AuthScreen() {
             <button className="btn-primary w-full py-3.5 text-[15px]" disabled={busy}>
               {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <>{mode === 'up' ? 'Создать аккаунт' : 'Войти'} <ArrowRight className="h-4 w-4" /></>}
             </button>
+            {mode === 'up' && (
+              <p className="text-center text-[12px] leading-snug text-navy-400">
+                Регистрируясь, вы соглашаетесь, что администратор Money Flow может просматривать ваши операции для поддержки. Каждый такой просмотр записывается в журнал.
+              </p>
+            )}
             {mode === 'in' && (
               <button type="button" onClick={() => setForgot(true)} className="w-full text-center text-sm font-semibold text-navy-500 hover:text-navy-800 dark:text-navy-300">Забыли пароль?</button>
             )}
