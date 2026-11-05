@@ -74,7 +74,7 @@ begin
   if uid is null then return jsonb_build_object('ok', false, 'error', 'Неверный ключ — получите новый в Finalyze → Профиль → Apple Pay'); end if;
 
   -- проверка связи из приложения: ничего не записываем
-  if lower(trim(coalesce(p_raw, ''))) = 'test' or trim(coalesce(p_raw, '')) = p_token or lower(trim(coalesce(p_amount, ''))) = 'test' then
+  if lower(trim(coalesce(p_raw, ''))) = 'test' or trim(coalesce(p_raw, '')) = p_token or (trim(coalesce(p_raw, '')) = '' and trim(coalesce(p_amount, '')) = '') or lower(trim(coalesce(p_amount, ''))) = 'test' then
     update public.wallet_tokens set last_used_at = now() where user_id = uid;
     return jsonb_build_object('ok', true, 'test', true, 'message', 'Finalyze подключён ✅');
   end if;

@@ -51,8 +51,8 @@ export function ApplePayCard() {
   );
 }
 
-type Phase = 'install' | 'connect' | 'automation' | 'done';
-const PHASES: Phase[] = ['install', 'connect', 'automation', 'done'];
+type Phase = 'install' | 'test' | 'automation' | 'done';
+const PHASES: Phase[] = ['install', 'test', 'automation', 'done'];
 const phaseKey = (uid: string) => `moneyflow:wallet-phase:${uid}`;
 const readPhase = (uid: string): Phase => {
   try { const v = localStorage.getItem(phaseKey(uid)) as Phase | null; return v && PHASES.includes(v) ? v : 'install'; } catch { return 'install'; }
@@ -73,7 +73,8 @@ function ApplePaySetup({ onClose }: { onClose: () => void }) {
   const refresh = useCallback(async () => {
     try {
       const t = await walletApi.get();
-      setToken(t?.token ?? null);
+      // ключ нужен заранее: при нажатии он сразу копируется (Safari разрешает копировать только в момент нажатия)
+      setToken(t?.token ?? (await walletApi.rotate()));
       setLastUsed(t?.last_used_at ?? null);
     } catch (e) {
       setErr(walletError(e));
@@ -91,7 +92,7 @@ function ApplePaySetup({ onClose }: { onClose: () => void }) {
   }, [refresh]);
   // команда отозвалась — значит установлена и ключ на месте: сразу к автоматизации
   useEffect(() => {
-    if (lastUsed && (phase === 'install' || phase === 'connect')) setPhase('automation');
+    if (lastUsed && (phase === 'install' || phase === 'test')) setPhase('automation');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastUsed]);
 
@@ -101,18 +102,14 @@ function ApplePaySetup({ onClose }: { onClose: () => void }) {
   const next = async () => {
     setErr('');
     if (phase === 'install') {
-      setPhase('connect');
+      if (!token) return;
+      try { await navigator.clipboard.writeText(token); } catch { /* ключ виден ниже — можно скопировать вручную */ }
+      setPhase('test');
       window.location.href = SHORTCUT_ICLOUD_URL;
       return;
     }
-    if (phase === 'connect') {
-      try {
-        const t = token ?? (await walletApi.rotate());
-        setToken(t);
-        runShortcut(t);
-      } catch (e) {
-        setErr(walletError(e));
-      }
+    if (phase === 'test') {
+      runShortcut('test');
       return;
     }
     if (phase === 'automation') {
@@ -125,7 +122,7 @@ function ApplePaySetup({ onClose }: { onClose: () => void }) {
 
   const rotate = async () => {
     setBusy(true); setErr('');
-    try { const t = await walletApi.rotate(); setToken(t); setLastUsed(null); setPhase('connect'); toast({ kind: 'success', title: 'Новый ключ создан', text: 'Нажмите большую кнопку, чтобы передать его в команду' }); } catch (e) { setErr(walletError(e)); }
+    try { const t = await walletApi.rotate(); setToken(t); setLastUsed(null); setPhase('install'); toast({ kind: 'success', title: 'Новый ключ создан', text: 'Удалите старую команду и установите заново' }); } catch (e) { setErr(walletError(e)); }
     setBusy(false);
   };
   const revoke = async () => {
@@ -137,13 +134,13 @@ function ApplePaySetup({ onClose }: { onClose: () => void }) {
   const idx = PHASES.indexOf(phase);
   const label: Record<Phase, string> = {
     install: 'Подключить Apple Pay',
-    connect: 'Продолжить',
+    test: 'Проверить',
     automation: 'Я включил — готово',
     done: 'Закрыть',
   };
   const hint: Record<Phase, React.ReactNode> = {
-    install: <>Откроются «Команды» — нажмите <b>«Добавить команду»</b> и вернитесь сюда.</>,
-    connect: <>Ещё раз откроются «Команды» и сами получат ваш ключ. Появится <b>«Finalyze подключён ✅»</b> — вернитесь сюда.</>,
+    install: <>Ваш ключ скопируется сам. Откроются «Команды» → <b>«Добавить команду»</b>. Если спросят ключ — нажмите в поле и <b>«Вставить»</b>. Потом вернитесь сюда.</>,
+    test: <>Нажмите — команда отправит проверку. Появится <b>«Finalyze подключён ✅»</b> — вернитесь сюда.</>,
     automation: null,
     done: <>Всё работает. Оплатили телефоном — трата появится в Finalyze с категорией.</>,
   };
@@ -184,11 +181,16 @@ function ApplePaySetup({ onClose }: { onClose: () => void }) {
             ) : (
               <div className="text-[13px] text-navy-500 dark:text-navy-300">{hint[phase]}</div>
             )}
-            <button className="btn-primary w-full py-4 text-[16px]" onClick={next} disabled={busy && phase === 'connect'}>
+            <button className="btn-primary w-full py-4 text-[16px]" onClick={next} disabled={busy || (phase === 'install' && !token)}>
               {phase === 'done' ? <Check className="h-5 w-5" /> : <AppleLogo className="h-5 w-5" />} {label[phase]}
             </button>
-            {phase === 'connect' && !lastUsed && (
+            {phase === 'test' && !lastUsed && (
               <button className="w-full text-center text-[12px] text-navy-400 underline" onClick={() => setPhase('install')}>Команда не установилась? Установить ещё раз</button>
+            )}
+            {(phase === 'install' || phase === 'test') && token && (
+              <Expand title="Ключ не вставился? Скопировать вручную">
+                <CopyRow label="ключ" value={token} secret />
+              </Expand>
             )}
           </>
         )}
@@ -198,13 +200,12 @@ function ApplePaySetup({ onClose }: { onClose: () => void }) {
         {cloud.isAdmin && (
           <Expand title="Для администратора: рецепт команды «Finalyze»">
             <ol className="list-decimal space-y-1.5 pl-5 text-[12px] leading-snug">
-              <li>«Команды» → «+» → назовите команду <b>{SHORTCUT_NAME}</b>.</li>
-              <li><b>«Если»</b>: «Ввод команды» → «начинается с» → <code>mf_</code>.</li>
-              <li>Внутри «Если»: <b>«Сохранить файл»</b> — «Ввод команды», папка «Команды», путь <code>Finalyze/token.txt</code>, «Спрашивать, куда сохранять» — выкл, «Перезаписывать» — вкл. Больше внутри «Если» ничего не нужно.</li>
-              <li>После «Конец Если»: <b>«Получить файл»</b> из папки «Команды», путь <code>Finalyze/token.txt</code>, «Ошибка, если не найден» — выкл.</li>
-              <li><b>«Получить содержимое URL»</b>: URL и apikey — ниже; метод POST; заголовки <code>apikey</code> и <code>Content-Type: application/json</code>; JSON-поля (тип «Текст»): <code>p_token</code> = «Файл», <code>p_raw</code> = «Ввод команды». По желанию: <code>p_amount</code> = «Ввод команды → Сумма», <code>p_merchant</code> = «→ Продавец», <code>p_card</code> = «→ Карта или пропуск».</li>
-              <li><b>«Показать уведомление»</b>: «Содержимое URL».</li>
-              <li>«⋯» у команды → «Поделиться» → <b>«Скопировать ссылку iCloud»</b> → пришлите ссылку разработчику.</li>
+              <li>«Команды» → «+» → название <b>{SHORTCUT_NAME}</b>.</li>
+              <li>Действие <b>«Текст»</b> → напишите в нём <code>КЛЮЧ</code>.</li>
+              <li>Действие <b>«Получить содержимое URL»</b> → вставьте URL (ниже) → «▸»: метод <b>POST</b>; «Заголовки» → <code>apikey</code> = ключ ниже; «Текст запроса» → <b>JSON</b> → поле <code>p_token</code> = переменная «Текст», поле <code>p_raw</code> = переменная «Ввод команды».</li>
+              <li>Действие <b>«Показать уведомление»</b> → переменная «Содержимое URL».</li>
+              <li>Внизу «ⓘ» → «Настройка» → «Добавить вопрос» → выберите действие «Текст» → вопрос: «Вставьте ключ из Finalyze».</li>
+              <li>«Готово» → удерживайте команду → «Поделиться» → <b>«Скопировать ссылку iCloud»</b> → пришлите разработчику.</li>
             </ol>
             <div className="mt-2 rounded-xl bg-white p-2 dark:bg-navy-900">
               <CopyRow label="URL" value={WALLET_URL} />
