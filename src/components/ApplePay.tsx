@@ -202,14 +202,13 @@ function ApplePaySetup({ onClose }: { onClose: () => void }) {
             <ol className="list-decimal space-y-1.5 pl-5 text-[12px] leading-snug">
               <li>«Команды» → «+» → название <b>{SHORTCUT_NAME}</b>.</li>
               <li>Действие <b>«Текст»</b> → напишите в нём <code>КЛЮЧ</code>.</li>
-              <li>Действие <b>«Получить содержимое URL»</b> → вставьте URL (ниже) → «▸»: метод <b>POST</b>; «Заголовки» → <code>apikey</code> = ключ ниже; «Текст запроса» → <b>JSON</b> → поле <code>p_token</code> = переменная «Текст», поле <code>p_raw</code> = переменная «Ввод команды».</li>
+              <li>Действие <b>«Получить содержимое URL»</b> → вставьте URL целиком (ниже, уже с ключом) → «▸»: метод <b>POST</b>; «Текст запроса» → <b>JSON</b> → поле <code>p_token</code> = переменная «Текст», поле <code>p_raw</code> = переменная «Ввод команды». Заголовки не нужны.</li>
               <li>Действие <b>«Показать уведомление»</b> → переменная «Содержимое URL».</li>
               <li>Внизу «ⓘ» → «Настройка» → «Добавить вопрос» → выберите действие «Текст» → вопрос: «Вставьте ключ из Finalyze».</li>
               <li>«Готово» → удерживайте команду → «Поделиться» → <b>«Скопировать ссылку iCloud»</b> → пришлите разработчику.</li>
             </ol>
             <div className="mt-2 rounded-xl bg-white p-2 dark:bg-navy-900">
-              <CopyRow label="URL" value={WALLET_URL} />
-              <CopyRow label="apikey" value={PUBLIC_KEY} />
+              <CopyRow label="URL" value={`${WALLET_URL}?apikey=${PUBLIC_KEY}`} />
               {token ? <CopyRow label="p_token" value={token} secret /> : <button className="btn-ghost w-full" onClick={rotate}><KeyRound className="h-4 w-4" /> Получить ключ</button>}
             </div>
           </Expand>
