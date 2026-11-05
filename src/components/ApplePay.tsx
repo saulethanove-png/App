@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Check, CheckCircle2, ChevronDown, Copy, Download, KeyRound, Link2, Loader2, RefreshCw, Smartphone, Trash2, Zap } from 'lucide-react';
+import type React from 'react';
+import { Check, CheckCircle2, ChevronDown, Copy, KeyRound, Loader2, RefreshCw, Smartphone, Trash2, Zap } from 'lucide-react';
 import { useCloud } from '../store/Cloud';
 import { useStore } from '../store/AppStore';
 import { useToast } from '../store/Toasts';
@@ -50,13 +51,24 @@ export function ApplePayCard() {
   );
 }
 
+type Phase = 'install' | 'connect' | 'automation' | 'done';
+const PHASES: Phase[] = ['install', 'connect', 'automation', 'done'];
+const phaseKey = (uid: string) => `moneyflow:wallet-phase:${uid}`;
+const readPhase = (uid: string): Phase => {
+  try { const v = localStorage.getItem(phaseKey(uid)) as Phase | null; return v && PHASES.includes(v) ? v : 'install'; } catch { return 'install'; }
+};
+const writePhase = (uid: string, p: Phase) => { try { localStorage.setItem(phaseKey(uid), p); } catch { /* приватный режим */ } };
+
 function ApplePaySetup({ onClose }: { onClose: () => void }) {
   const toast = useToast();
+  const cloud = useCloud();
+  const uid = cloud.user?.id ?? 'guest';
   const [token, setToken] = useState<string | null>(null);
   const [lastUsed, setLastUsed] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
   const [err, setErr] = useState('');
-  const [step, setStep] = useState<'connect' | 'test' | null>(null);
+  const [phase, setPhaseRaw] = useState<Phase>(() => readPhase(uid));
+  const setPhase = (p: Phase) => { setPhaseRaw(p); writePhase(uid, p); };
 
   const refresh = useCallback(async () => {
     try {
@@ -77,126 +89,140 @@ function ApplePaySetup({ onClose }: { onClose: () => void }) {
     document.addEventListener('visibilitychange', on);
     return () => document.removeEventListener('visibilitychange', on);
   }, [refresh]);
+  // команда отозвалась — значит установлена и ключ на месте: сразу к автоматизации
+  useEffect(() => {
+    if (lastUsed && (phase === 'install' || phase === 'connect')) setPhase('automation');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastUsed]);
 
-  const ensureToken = async () => token ?? (await walletApi.rotate());
+  const linkReady = !!SHORTCUT_ICLOUD_URL;
 
-  const connect = async () => {
+  /** Одна кнопка: каждый раз делает следующий шаг */
+  const next = async () => {
     setErr('');
-    try {
-      const t = await ensureToken();
-      setToken(t);
-      setStep('connect');
-      runShortcut(t);
-    } catch (e) {
-      setErr(walletError(e));
+    if (phase === 'install') {
+      setPhase('connect');
+      window.location.href = SHORTCUT_ICLOUD_URL;
+      return;
     }
+    if (phase === 'connect') {
+      try {
+        const t = token ?? (await walletApi.rotate());
+        setToken(t);
+        runShortcut(t);
+      } catch (e) {
+        setErr(walletError(e));
+      }
+      return;
+    }
+    if (phase === 'automation') {
+      setPhase('done');
+      toast({ kind: 'success', title: 'Готово!', text: 'Оплатите что-нибудь Apple Pay — трата появится сама' });
+      return;
+    }
+    onClose();
   };
-  const test = () => {
-    setStep('test');
-    runShortcut('test');
-  };
+
   const rotate = async () => {
     setBusy(true); setErr('');
-    try { const t = await walletApi.rotate(); setToken(t); setLastUsed(null); toast({ kind: 'success', title: 'Новый ключ создан', text: 'Нажмите «Подключить», чтобы передать его в команду' }); } catch (e) { setErr(walletError(e)); }
+    try { const t = await walletApi.rotate(); setToken(t); setLastUsed(null); setPhase('connect'); toast({ kind: 'success', title: 'Новый ключ создан', text: 'Нажмите большую кнопку, чтобы передать его в команду' }); } catch (e) { setErr(walletError(e)); }
     setBusy(false);
   };
   const revoke = async () => {
     setBusy(true);
-    try { await walletApi.revoke(); setToken(null); setLastUsed(null); toast({ kind: 'info', title: 'Apple Pay отключён' }); } catch (e) { setErr(walletError(e)); }
+    try { await walletApi.revoke(); setToken(null); setLastUsed(null); setPhase('install'); toast({ kind: 'info', title: 'Apple Pay отключён' }); } catch (e) { setErr(walletError(e)); }
     setBusy(false);
   };
 
-  const connected = !!lastUsed;
+  const idx = PHASES.indexOf(phase);
+  const label: Record<Phase, string> = {
+    install: 'Подключить Apple Pay',
+    connect: 'Продолжить',
+    automation: 'Я включил — готово',
+    done: 'Закрыть',
+  };
+  const hint: Record<Phase, React.ReactNode> = {
+    install: <>Откроются «Команды» — нажмите <b>«Добавить команду»</b> и вернитесь сюда.</>,
+    connect: <>Ещё раз откроются «Команды» и сами получат ваш ключ. Появится <b>«Finalyze подключён ✅»</b> — вернитесь сюда.</>,
+    automation: null,
+    done: <>Всё работает. Оплатили телефоном — трата появится в Finalyze с категорией.</>,
+  };
 
   return (
     <Modal open onClose={onClose} title="Apple Pay → Finalyze">
       <div className="space-y-4 pb-4 text-[14px]">
-        <div className={cx('flex items-center gap-3 rounded-2xl p-3', connected ? 'bg-mint-400/10' : 'bg-navy-50 dark:bg-navy-850')}>
-          {busy ? <Loader2 className="h-5 w-5 animate-spin text-navy-400" /> : connected ? <CheckCircle2 className="h-5 w-5 text-mint-500" /> : <Zap className="h-5 w-5 text-amber-500" />}
+        <div className={cx('flex items-center gap-3 rounded-2xl p-3', lastUsed ? 'bg-mint-400/10' : 'bg-navy-50 dark:bg-navy-850')}>
+          {busy ? <Loader2 className="h-5 w-5 animate-spin text-navy-400" /> : lastUsed ? <CheckCircle2 className="h-5 w-5 text-mint-500" /> : <Zap className="h-5 w-5 text-amber-500" />}
           <div className="text-[13px] font-semibold">
-            {connected ? `Подключено · последний сигнал ${ago(lastUsed)}` : 'Пока не подключено — займёт около минуты'}
+            {lastUsed ? `Связь есть · последний сигнал ${ago(lastUsed)}` : 'Не подключено · около минуты'}
           </div>
         </div>
 
-        <ol className="space-y-3">
-          <BigStep n={1} done={false} title="Установите команду">
-            {SHORTCUT_ICLOUD_URL ? (
-              <a className="btn-dark mt-2 w-full" href={SHORTCUT_ICLOUD_URL} target="_blank" rel="noreferrer"><Download className="h-4 w-4" /> Установить команду «{SHORTCUT_NAME}»</a>
+        {/* прогресс */}
+        <div className="flex gap-1.5">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className={cx('h-1.5 flex-1 rounded-full', i < idx ? 'bg-mint-400' : i === idx ? 'bg-mint-400/50' : 'bg-navy-100 dark:bg-navy-800')} />
+          ))}
+        </div>
+
+        {!linkReady && phase === 'install' ? (
+          <div className="rounded-2xl bg-amber-50 p-3 text-[13px] text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">
+            Подключение Apple Pay скоро станет доступно. Мы сообщим, когда кнопка заработает.
+          </div>
+        ) : (
+          <>
+            {phase === 'automation' ? (
+              <div className="rounded-2xl border border-navy-100 p-3 dark:border-navy-800">
+                <div className="font-bold">Последний шаг — его Apple разрешает сделать только вам</div>
+                <ol className="mt-2 space-y-1.5 text-[13px] text-navy-600 dark:text-navy-300">
+                  <li>1. Откройте <b>«Команды»</b> → внизу <b>«Автоматизация»</b> → <b>«+»</b></li>
+                  <li>2. Выберите <b>«Транзакция»</b>, отметьте свои карты, включите <b>«Запускать сразу»</b> → «Далее»</li>
+                  <li>3. Нажмите <b>«{SHORTCUT_NAME}»</b> в списке — готово</li>
+                </ol>
+                <a className="btn-ghost mt-3 w-full" href="shortcuts://"><Smartphone className="h-4 w-4" /> Открыть «Команды»</a>
+              </div>
             ) : (
-              <div className="mt-1 rounded-xl bg-amber-50 p-2 text-[12px] text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">Ссылка на готовую команду скоро появится. Пока соберите её по рецепту внизу.</div>
+              <div className="text-[13px] text-navy-500 dark:text-navy-300">{hint[phase]}</div>
             )}
-            <div className="mt-1 text-[12px] text-navy-400">Откроются «Команды» → нажмите «Добавить команду».</div>
-          </BigStep>
-
-          <BigStep n={2} done={!!token && step !== null} title="Подключите аккаунт">
-            <button className="btn-primary mt-2 w-full" onClick={connect} disabled={busy}><Link2 className="h-4 w-4" /> Подключить</button>
-            <div className="mt-1 text-[12px] text-navy-400">Ключ передастся в команду сам — появится «Finalyze подключён ✅». Вернитесь сюда.</div>
-          </BigStep>
-
-          <BigStep n={3} done={connected} title="Включите автоматизацию">
-            <ul className="mt-1 space-y-1 text-[13px] text-navy-600 dark:text-navy-300">
-              <li>«Команды» → вкладка <b>«Автоматизация»</b> → <b>«+»</b> → <b>«Транзакция»</b></li>
-              <li>Отметьте ваши карты (Kaspi Gold, Alatau…) → <b>«Запускать сразу»</b> → «Далее»</li>
-              <li>Выберите <b>«{SHORTCUT_NAME}»</b> из списка команд → «Готово»</li>
-            </ul>
-          </BigStep>
-
-          <BigStep n={4} done={connected} title="Проверьте связь">
-            <button className="btn-ghost mt-2 w-full" onClick={test} disabled={!token}><RefreshCw className="h-4 w-4" /> Проверить</button>
-            <div className="mt-1 text-[12px] text-navy-400">
-              {step === 'test' && !connected ? 'Если «Команды» показали «Finalyze подключён ✅» — всё готово. Статус наверху обновится.' : 'Команда отправит тестовый сигнал — операция не создаётся.'}
-            </div>
-          </BigStep>
-        </ol>
+            <button className="btn-primary w-full py-4 text-[16px]" onClick={next} disabled={busy && phase === 'connect'}>
+              {phase === 'done' ? <Check className="h-5 w-5" /> : <AppleLogo className="h-5 w-5" />} {label[phase]}
+            </button>
+            {phase === 'connect' && !lastUsed && (
+              <button className="w-full text-center text-[12px] text-navy-400 underline" onClick={() => setPhase('install')}>Команда не установилась? Установить ещё раз</button>
+            )}
+          </>
+        )}
 
         {err && <div className="rounded-2xl bg-rose-50 p-3 text-[13px] font-medium text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{err}</div>}
 
-        <Expand title="Рецепт команды «Finalyze» (собрать один раз)">
-          <ol className="list-decimal space-y-1.5 pl-5 text-[12px] leading-snug">
-            <li>«Команды» → «+» → назовите команду <b>{SHORTCUT_NAME}</b>.</li>
-            <li><b>«Если»</b>: «Ввод команды» → «начинается с» → <code>mf_</code>.</li>
-            <li>Внутри «Если»: <b>«Сохранить файл»</b> — «Ввод команды», папка «Команды», подпапка/имя <code>Finalyze/token.txt</code>, «Спрашивать, куда сохранять» — выкл, «Перезаписывать» — вкл.</li>
-            <li>Там же: <b>«Показать уведомление»</b> «Finalyze подключён ✅» и <b>«Остановить эту команду»</b>.</li>
-            <li>После «Конец Если»: <b>«Получить файл»</b> из папки «Команды», путь <code>Finalyze/token.txt</code>, «Ошибка, если не найден» — выкл.</li>
-            <li><b>«Получить содержимое URL»</b>: URL и apikey — ниже; метод POST; заголовки <code>apikey</code> и <code>Content-Type: application/json</code>; JSON-поля (тип «Текст»): <code>p_token</code> = «Файл», <code>p_raw</code> = «Ввод команды», <code>p_amount</code> = «Ввод команды → Сумма», <code>p_merchant</code> = «→ Продавец», <code>p_card</code> = «→ Карта или пропуск». Если свойства «Сумма»/«Продавец» не выбираются — оставьте только <code>p_token</code> и <code>p_raw</code>.</li>
-            <li><b>«Показать уведомление»</b>: «Содержимое URL».</li>
-            <li>Готово → «⋯» у команды → «Поделиться» → <b>«Скопировать ссылку iCloud»</b> → пришлите ссылку разработчику — у всех появится кнопка «Установить команду».</li>
-          </ol>
-          <div className="mt-2 rounded-xl bg-white p-2 dark:bg-navy-900">
-            <CopyRow label="URL" value={WALLET_URL} />
-            <CopyRow label="apikey" value={PUBLIC_KEY} />
-          </div>
-        </Expand>
+        {cloud.isAdmin && (
+          <Expand title="Для администратора: рецепт команды «Finalyze»">
+            <ol className="list-decimal space-y-1.5 pl-5 text-[12px] leading-snug">
+              <li>«Команды» → «+» → назовите команду <b>{SHORTCUT_NAME}</b>.</li>
+              <li><b>«Если»</b>: «Ввод команды» → «начинается с» → <code>mf_</code>.</li>
+              <li>Внутри «Если»: <b>«Сохранить файл»</b> — «Ввод команды», папка «Команды», путь <code>Finalyze/token.txt</code>, «Спрашивать, куда сохранять» — выкл, «Перезаписывать» — вкл. Больше внутри «Если» ничего не нужно.</li>
+              <li>После «Конец Если»: <b>«Получить файл»</b> из папки «Команды», путь <code>Finalyze/token.txt</code>, «Ошибка, если не найден» — выкл.</li>
+              <li><b>«Получить содержимое URL»</b>: URL и apikey — ниже; метод POST; заголовки <code>apikey</code> и <code>Content-Type: application/json</code>; JSON-поля (тип «Текст»): <code>p_token</code> = «Файл», <code>p_raw</code> = «Ввод команды». По желанию: <code>p_amount</code> = «Ввод команды → Сумма», <code>p_merchant</code> = «→ Продавец», <code>p_card</code> = «→ Карта или пропуск».</li>
+              <li><b>«Показать уведомление»</b>: «Содержимое URL».</li>
+              <li>«⋯» у команды → «Поделиться» → <b>«Скопировать ссылку iCloud»</b> → пришлите ссылку разработчику.</li>
+            </ol>
+            <div className="mt-2 rounded-xl bg-white p-2 dark:bg-navy-900">
+              <CopyRow label="URL" value={WALLET_URL} />
+              <CopyRow label="apikey" value={PUBLIC_KEY} />
+              {token ? <CopyRow label="p_token" value={token} secret /> : <button className="btn-ghost w-full" onClick={rotate}><KeyRound className="h-4 w-4" /> Получить ключ</button>}
+            </div>
+          </Expand>
+        )}
 
-        <Expand title="Ручная настройка без готовой команды">
-          <div className="text-[12px] text-navy-500 dark:text-navy-300">Автоматизация «Транзакция» → действие «Получить содержимое URL» с полями ниже. Секретный ключ не показывайте другим.</div>
-          <div className="mt-2 rounded-xl bg-white p-2 dark:bg-navy-900">
-            <CopyRow label="URL" value={WALLET_URL} />
-            <CopyRow label="apikey" value={PUBLIC_KEY} />
-            {token ? <CopyRow label="p_token" value={token} secret /> : <button className="btn-ghost w-full" onClick={rotate}><KeyRound className="h-4 w-4" /> Получить ключ</button>}
-          </div>
-        </Expand>
-
-        {token && (
+        {token && (phase === 'done' || cloud.isAdmin) && (
           <div className="grid grid-cols-2 gap-2">
             <button className="btn-ghost" onClick={rotate} disabled={busy}><RefreshCw className="h-4 w-4" /> Новый ключ</button>
             <button className="btn-danger" onClick={revoke} disabled={busy}><Trash2 className="h-4 w-4" /> Отключить</button>
           </div>
         )}
-        <div className="text-[12px] text-navy-400">Работает с оплатами Apple Pay на iOS 17+. Kaspi QR и переводы подтянет импорт выписки — без дублей.</div>
+        <div className="text-[12px] text-navy-400">Работает с Apple Pay на iOS 17+. Kaspi QR и переводы подтянет импорт выписки — без дублей.</div>
       </div>
     </Modal>
-  );
-}
-
-function BigStep({ n, title, done, children }: { n: number; title: string; done: boolean; children: React.ReactNode }) {
-  return (
-    <li className="flex gap-3 rounded-2xl border border-navy-100 p-3 dark:border-navy-800">
-      <span className={cx('grid h-7 w-7 shrink-0 place-items-center rounded-full text-[13px] font-extrabold', done ? 'bg-mint-400 text-navy-950' : 'bg-navy-900 text-white dark:bg-white dark:text-navy-950')}>
-        {done ? <Check className="h-4 w-4" strokeWidth={3} /> : n}
-      </span>
-      <div className="min-w-0 flex-1"><div className="font-bold">{title}</div>{children}</div>
-    </li>
   );
 }
 
