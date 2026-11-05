@@ -1,4 +1,4 @@
--- Finalyze — шаг 2: админка, мгновенная синхронизация, Apple Pay. Запускать после schema.sql. Повторный запуск безопасен.
+-- Finalyze — шаг 2: админка, мгновенная синхронизация, Apple Pay, иконки счетов. Запускать после schema.sql. Повторный запуск безопасен.
 
 -- Finalyze — администрирование
 -- Запускать ПОСЛЕ schema.sql: Supabase → SQL Editor → New query → вставить → Run.
@@ -254,7 +254,9 @@ begin
 end $$;
 
 -- Приём операции из «Команд». Вызывается без входа в аккаунт — пользователь определяется по ключу.
-create or replace function public.wallet_add(p_token text, p_amount text, p_merchant text default '', p_card text default '')
+-- p_raw — весь «Ввод команды» текстом: запасной источник суммы/продавца и проверка связи (p_raw = 'test').
+drop function if exists public.wallet_add(text, text, text, text);
+create or replace function public.wallet_add(p_token text, p_amount text default '', p_merchant text default '', p_card text default '', p_raw text default '')
 returns jsonb
 language plpgsql volatile security definer set search_path = public as $$
 declare
@@ -268,12 +270,31 @@ declare
   today date := (now() at time zone 'Asia/Qyzylorda')::date;
   now_ms bigint := (extract(epoch from now()) * 1000)::bigint;
   tx_id text := 'w' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 14);
+  raw_amount text;
 begin
   select user_id into uid from public.wallet_tokens where token = p_token;
   if uid is null then return jsonb_build_object('ok', false, 'error', 'Неверный ключ — получите новый в Finalyze → Профиль → Apple Pay'); end if;
 
+  -- проверка связи из приложения: ничего не записываем
+  if lower(trim(coalesce(p_raw, ''))) = 'test' or lower(trim(coalesce(p_amount, ''))) = 'test' then
+    update public.wallet_tokens set last_used_at = now() where user_id = uid;
+    return jsonb_build_object('ok', true, 'test', true, 'message', 'Finalyze подключён ✅');
+  end if;
+
   amt := public._parse_amount(p_amount);
-  if amt is null or amt <= 0 then return jsonb_build_object('ok', false, 'error', 'Не удалось прочитать сумму: ' || coalesce(p_amount, '')); end if;
+  -- сумма не пришла отдельным полем — ищем её в тексте транзакции
+  if (amt is null or amt <= 0) and coalesce(p_raw, '') <> '' then
+    raw_amount := coalesce(
+      substring(p_raw from '([0-9][0-9  .,]*[0-9])\s*(?:₸|KZT|kzt|тг)'),
+      substring(p_raw from '(?:₸|KZT)\s*([0-9][0-9  .,]*[0-9])'),
+      substring(p_raw from '([0-9][0-9  .,]*[.,][0-9]{2})'));
+    amt := public._parse_amount(raw_amount);
+    if merchant = '' then
+      merchant := left(trim(regexp_replace(replace(p_raw, coalesce(raw_amount, ''), ''), '(₸|KZT|kzt|тг|[\n\r|·•,;:-]+)', ' ', 'g')), 120);
+      merchant := regexp_replace(merchant, '\s+', ' ', 'g');
+    end if;
+  end if;
+  if amt is null or amt <= 0 then return jsonb_build_object('ok', false, 'error', 'Не удалось прочитать сумму: ' || left(coalesce(nullif(p_amount, ''), p_raw, ''), 80)); end if;
 
   -- не больше 300 операций в сутки на ключ
   if (select count(*) from public.transactions where user_id = uid and source = 'wallet' and date = today) >= 300 then
@@ -310,16 +331,16 @@ begin
   return jsonb_build_object('ok', true, 'amount', amt / 100.0, 'merchant', merchant, 'account', card);
 end $$;
 
-revoke all on function public.wallet_add(text, text, text, text), public._parse_amount(text) from public;
-grant execute on function public.wallet_add(text, text, text, text) to anon, authenticated;
+revoke all on function public.wallet_add(text, text, text, text, text), public._parse_amount(text) from public;
+grant execute on function public.wallet_add(text, text, text, text, text) to anon, authenticated;
 revoke all on function public.rotate_wallet_token(), public.revoke_wallet_token() from public, anon;
 grant execute on function public.rotate_wallet_token(), public.revoke_wallet_token() to authenticated;
-
--- Администратор: saulethanove@gmail.com (права выдаются сразу или автоматически после регистрации)
-insert into public.admin_invites (email) values ('saulethanove@gmail.com') on conflict do nothing;
-insert into public.admins (user_id) select id from auth.users where lower(email) = 'saulethanove@gmail.com' on conflict do nothing;
 
 -- Finalyze — свои иконки счетов (логотип банка из галереи). Повторный запуск безопасен.
 alter table public.accounts add column if not exists icon text;
 alter table public.accounts drop constraint if exists accounts_icon_size;
 alter table public.accounts add constraint accounts_icon_size check (icon is null or char_length(icon) < 60000);
+
+-- Администратор: saulethanove@gmail.com (права выдаются сразу или автоматически после регистрации)
+insert into public.admin_invites (email) values ('saulethanove@gmail.com') on conflict do nothing;
+insert into public.admins (user_id) select id from auth.users where lower(email) = 'saulethanove@gmail.com' on conflict do nothing;

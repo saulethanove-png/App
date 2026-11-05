@@ -29,3 +29,13 @@ export function walletError(e: unknown): string {
   if (/fetch|network/i.test(m)) return 'Нет связи с сервером';
   return m;
 }
+
+/** Имя команды в приложении «Команды» — должно совпадать с эталонной командой */
+export const SHORTCUT_NAME = 'Finalyze';
+/** Ссылка iCloud на эталонную команду (задаётся в .env.production: VITE_SHORTCUT_URL) */
+export const SHORTCUT_ICLOUD_URL = ((import.meta.env.VITE_SHORTCUT_URL as string | undefined) ?? '').trim();
+
+/** Запустить команду Finalyze и передать ей текст (ключ или 'test') */
+export function runShortcut(text: string) {
+  window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(SHORTCUT_NAME)}&input=text&text=${encodeURIComponent(text)}`;
+}
