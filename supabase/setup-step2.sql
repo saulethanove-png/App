@@ -256,6 +256,8 @@ end $$;
 -- Приём операции из «Команд». Вызывается без входа в аккаунт — пользователь определяется по ключу.
 -- p_raw — весь «Ввод команды» текстом: запасной источник суммы/продавца и проверка связи (p_raw = 'test').
 drop function if exists public.wallet_add(text, text, text, text);
+alter table public.wallet_tokens add column if not exists last_raw text;
+
 create or replace function public.wallet_add(p_token text, p_amount text default '', p_merchant text default '', p_card text default '', p_raw text default '')
 returns jsonb
 language plpgsql volatile security definer set search_path = public as $$
@@ -294,7 +296,12 @@ begin
       merchant := regexp_replace(merchant, '\s+', ' ', 'g');
     end if;
   end if;
-  if amt is null or amt <= 0 then return jsonb_build_object('ok', false, 'error', 'Не удалось прочитать сумму: ' || left(coalesce(nullif(p_amount, ''), p_raw, ''), 80)); end if;
+  -- суммы нет — это ручной запуск / проверка связи: отмечаем подключение и запоминаем текст для диагностики
+  if amt is null or amt <= 0 then
+    update public.wallet_tokens set last_used_at = now(), last_raw = left(coalesce(nullif(p_raw, ''), p_amount, ''), 300) where user_id = uid;
+    return jsonb_build_object('ok', true, 'test', true, 'message', 'Finalyze подключён ✅');
+  end if;
+  update public.wallet_tokens set last_raw = left(coalesce(p_raw, ''), 300) where user_id = uid;
 
   -- не больше 300 операций в сутки на ключ
   if (select count(*) from public.transactions where user_id = uid and source = 'wallet' and date = today) >= 300 then
